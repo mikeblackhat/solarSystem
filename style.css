@@ -386,7 +386,7 @@ body {
 
 @media (max-width: 480px) {
   .title {
-    top: 10px;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
@@ -528,7 +528,7 @@ body {
 
 @media (max-height: 700px) {
   .title {
-    top: 15px;
+    top: 25px;
   }
   .title h1 {
     font-size: 2.2rem;
@@ -548,7 +548,7 @@ body {
 
 @media (orientation: landscape) and (max-height: 500px) {
   .title {
-    top: 10px;
+    top: 20px;
   }
   .title h1 {
     font-size: 1.8rem;
