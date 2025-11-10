@@ -1,1265 +1,1736 @@
 <!DOCTYPE html>
 <html lang="en">
-
-  <head>
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Interactive 3D Galaxy Animation | mikeblackhat</title>
-    <link rel="stylesheet" href="./style.css">
-  </head>
-    
-<body>
-  <div id="container"></div>
-  <div class="stats" id="stats">
-    <div>Systems: Active</div>
-    <div>Resonance: Stable</div>
-    <div>Phase: Nominal</div>
-  </div>
-  <div class="title">
-    <h1>Solar System</h1>
-    <p class="author">by Mikeblackhat</p>
-  </div>
-  <div class="controls">
-    <button class="control-button" id="resetView">
-      <span></span><span></span><span></span><span></span><span>Reset View</span>
-    </button>
-    <button class="control-button activate-button" id="activateTrigger">
-      <span></span><span></span><span></span><span></span><span>Activate Resonance</span>
-    </button>
-    <button class="control-button" id="timeAccel">
-      <span></span><span></span><span></span><span></span><span>Time: 1x</span>
-    </button>
-    <button class="control-button" id="toggleTheme">
-      <span></span><span></span><span></span><span></span><span>Theme: Inferno</span>
-    </button>
-  </div>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Galaxy Animation - Complete</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background: #000; color: #fff; font-family: 'Courier New', monospace; }
+        #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* Estilos originales del título */
+        .title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .title h1 {
+            font-size: 2.5em;
+            margin: 0;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        .title .author {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin: 5px 0 0 0;
+        }
+        
+        /* Estilos originales de estadísticas */
+        .stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 100;
+            pointer-events: none;
+            backdrop-filter: blur(5px);
+        }
+        .stats div {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+        
+        /* Estilos originales de controles */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+        .control-button {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            backdrop-filter: blur(5px);
+            min-width: 100px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+        .control-button.activate-button.resonance-active {
+            border-color: #ff6b35;
+            background: rgba(255, 107, 53, 0.2);
+        }
+        .control-button.activate-button.resonance-active:hover {
+            background: rgba(255, 107, 53, 0.4);
+        }
+        .control-button.resonance-active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.3);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+        
+        #debug-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none; /* Ocultar por defecto, presiona 'D' para mostrar */
+        }
+        .debug-error { color: #ff6666; }
+        .debug-success { color: #66ff66; }
+        .debug-info { color: #66ccff; }
+        .debug-warning { color: #ffaa66; }
 
-  <script id="starVertexShader" type="x-shader/x-vertex">
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    varying vec2 vUv;
-    void main(){
-        vPosition=position;
-        vNormal=normal;
-        vUv=uv;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-    }
-  </script>
-  <script id="starFragmentShader" type="x-shader/x-fragment">
-    uniform float time;
-    uniform float intensity;
-    uniform vec3 color1;
-    uniform vec3 color2;
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    varying vec2 vUv;
-    float noise(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,54.53)))*43758.5453);}
-    void main(){
-        vec3 pos=vPosition+time*0.1;
-        float n1=noise(pos*3.0);
-        float n2=noise(pos*6.0+vec3(100.0));
-        float n3=noise(pos*12.0+vec3(200.0));
-        float pattern=n1*0.5+n2*0.3+n3*0.2;
-        pattern=pow(pattern,2.0);
-        vec3 finalColor=mix(color1,color2,pattern);
-        finalColor*=(1.0+intensity*pattern*2.0);
-        float fresnel=pow(1.0-dot(vNormal,vec3(0.0,0.0,1.0)),2.0);
-        finalColor+=fresnel*intensity*0.5;
-        gl_FragColor=vec4(finalColor,1.0);
-    }
-  </script>
-  <script id="planetVertexShader" type="x-shader/x-vertex">
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    varying vec2 vUv;
-    void main(){
-        vPosition=position;
-        vNormal=normalize(normalMatrix*normal);
-        vUv=uv;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-    }
-  </script>
-  <script id="planetFragmentShader" type="x-shader/x-fragment">
-    uniform float time;
-    uniform vec3 baseColor;
-    uniform vec3 accentColor;
-    uniform float energy;
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    varying vec2 vUv;
-    float noise(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
-    void main(){
-        vec2 uv=vUv+time*0.02;
-        float n1=noise(uv*8.0);
-        float n2=noise(uv*16.0);
-        float pattern=n1*0.7+n2*0.3;
-        vec3 color=mix(baseColor,accentColor,pattern);
-        float fresnel=pow(1.0-abs(dot(vNormal,vec3(0.0,0.0,1.0))),1.5);
-        color+=fresnel*accentColor*0.5;
-        color*=(1.0+energy*0.8);
-        gl_FragColor=vec4(color,1.0);
-    }
-  </script>
-  <script id="arcVertexShader" type="x-shader/x-vertex">
-    varying vec2 vUv;
-    varying vec3 vPosition;
-    void main(){
-        vUv=uv;
-        vPosition=position;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-    }
-  </script>
-  <script id="arcFragmentShader" type="x-shader/x-fragment">
-    uniform float time;
-    uniform vec3 color;
-    uniform float opacity;
-    uniform float energy;
-    varying vec2 vUv;
-    varying vec3 vPosition;
-    void main(){
-        float flow=abs(sin(vUv.x*15.0-time*12.0));
-        float pulse=sin(time*8.0)*0.5+0.5;
-        float pattern=pow(flow,1.5)*(1.0+pulse*energy);
-        float fade=sin(vUv.x*3.14159);
-        vec3 finalColor=color*(pattern*2.0+0.3);
-        float alpha=fade*opacity*(pattern+0.2)*(1.0+energy);
-        gl_FragColor=vec4(finalColor,alpha);
-    }
-  </script>
-  <script type="importmap">
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <!-- Indicadores de estado originales -->
+    <div class="stats" id="stats">
+        <div>Systems: Active</div>
+        <div>Resonance: Stable</div>
+        <div>Phase: Nominal</div>
+    </div>
+    
+    <!-- Título original -->
+    <div class="title">
+        <h1>Solar System</h1>
+        <p class="author">by Mikeblackhat</p>
+    </div>
+    
+    <!-- Controles originales -->
+    <div class="controls">
+        <button class="control-button" id="resetView">Reset View</button>
+        <button class="control-button activate-button" id="activateTrigger">Activate Resonance</button>
+        <button class="control-button" id="timeAccel">Time: 1x</button>
+        <button class="control-button" id="toggleTheme">Theme: Celestial</button>
+
+    </div>
+    
+    <div id="debug-panel">
+        <div>Estado: <span id="debug-state">Iniciando...</span></div>
+        <div id="debug-messages"></div>
+    </div>
+
+    
+    <!-- Shaders -->
+    <script id="starVertexShader" type="x-shader/x-vertex">
+        varying vec3 vPosition;
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        void main(){
+            vPosition = position;
+            vNormal = normal;
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    
+    <script id="starFragmentShader" type="x-shader/x-fragment">
+        uniform float time;
+        uniform float intensity;
+        uniform vec3 color1;
+        uniform vec3 color2;
+        varying vec3 vPosition;
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        
+        float noise(vec3 p){
+            return fract(sin(dot(p, vec3(12.9898, 78.233, 54.53))) * 43758.5453);
+        }
+        
+        void main(){
+            vec3 pos = vPosition + time * 0.1;
+            float n1 = noise(pos * 3.0);
+            float n2 = noise(pos * 6.0 + vec3(100.0));
+            float n3 = noise(pos * 12.0 + vec3(200.0));
+            float pattern = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
+            pattern = pow(pattern, 2.0);
+            vec3 finalColor = mix(color1, color2, pattern);
+            finalColor *= (1.0 + intensity * pattern * 2.0);
+            float fresnel = pow(1.0 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+            finalColor += fresnel * intensity * 0.5;
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    </script>
+    
+    <script id="planetVertexShader" type="x-shader/x-vertex">
+        varying vec3 vPosition;
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        void main(){
+            vPosition = position;
+            vNormal = normalize(normalMatrix * normal);
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    
+    <script id="planetFragmentShader" type="x-shader/x-fragment">
+        uniform float time;
+        uniform vec3 baseColor;
+        uniform vec3 accentColor;
+        uniform float energy;
+        varying vec3 vPosition;
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        
+        float noise(vec2 p){
+            return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+        
+        void main(){
+            vec2 uv = vUv + time * 0.02;
+            float n1 = noise(uv * 8.0);
+            float n2 = noise(uv * 16.0);
+            float pattern = n1 * 0.7 + n2 * 0.3;
+            vec3 color = mix(baseColor, accentColor, pattern);
+            float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 1.5);
+            color += fresnel * accentColor * 0.5;
+            color *= (1.0 + energy * 0.8);
+            gl_FragColor = vec4(color, 1.0);
+        }
+    </script>
+    
+    <script id="bigBangVertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        uniform float time;
+        
+        void main(){
+            vUv = uv;
+            vPosition = position;
+            vec3 pos = position;
+            float expansion = sin(time * 5.0) * 0.5 + 0.5;
+            pos *= (1.0 + expansion * 3.0);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+    </script>
+    
+    <script id="bigBangFragmentShader" type="x-shader/x-fragment">
+        uniform float time;
+        uniform vec3 center;
+        uniform float explosionRadius;
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        
+        float noise(vec3 p){
+            return fract(sin(dot(p, vec3(12.9898, 78.233, 54.53))) * 43758.5453);
+        }
+        
+        void main(){
+            vec3 pos = vPosition - center;
+            float dist = length(pos);
+            float wave = sin(dist * 10.0 - time * 15.0);
+            float explosion = 1.0 - smoothstep(0.0, explosionRadius, dist);
+            float n = noise(pos * 5.0 + time * 3.0);
+            
+            vec3 color = mix(vec3(1.0, 0.5, 0.0), vec3(0.2, 0.1, 0.8), n);
+            color *= (1.0 + wave * 0.5) * explosion;
+            
+            float alpha = explosion * (0.8 + wave * 0.2);
+            gl_FragColor = vec4(color, alpha);
+        }
+    </script>
+    
+    <script type="importmap">
     {
       "imports": {
         "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.161.0/three.module.js",
         "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
       }
     }
-  </script>
-  <script type="module">
-    import * as THREE from "three";
-    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-    import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-    import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-
-    let scene, camera, renderer, controls, clock, composer;
-    let star,
-      orrery,
-      starLight,
-      ambientLight,
-      blueLight,
-      purpleLight,
-      metalMaterial,
-      ringMaterial;
-    let planets = [];
-    let activeEffects = [];
-    let particleSystems = [];
-    let timeAcceleration = 1.0;
-    let isResonanceActive = false;
-    let currentThemeIndex = 2;
-    let comets = [];
-    let spaceship = null;
-    let spaceshipPath = null;
-
-    const container = document.getElementById("container");
-    const activateButton = document.getElementById("activateTrigger");
-    const resetButton = document.getElementById("resetView");
-    const timeButton = document.getElementById("timeAccel");
-    const themeButton = document.getElementById("toggleTheme");
-
-    const themes = [
-      {
-        name: "Inferno",
-        starColors: { color1: 0xffffff, color2: 0xffcc00 },
-        planetData: [
-          {
-            baseColor: [0.8, 0.2, 0.1],
-            accentColor: [1, 0.6, 0.2],
-            trailColor: 0xff4400,
-          },
-          {
-            baseColor: [0.6, 0.1, 0.1],
-            accentColor: [1, 0.4, 0.1],
-            trailColor: 0xff8800,
-          },
-          {
-            baseColor: [0.9, 0.3, 0],
-            accentColor: [1, 0.8, 0.3],
-            trailColor: 0xffaa33,
-          },
-          {
-            baseColor: [0.7, 0.5, 0.1],
-            accentColor: [1, 0.9, 0.4],
-            trailColor: 0xffcc44,
-          },
-          {
-            baseColor: [0.5, 0.3, 0.2],
-            accentColor: [0.9, 0.7, 0.5],
-            trailColor: 0xdd7744,
-          },
-          {
-            baseColor: [0.4, 0.1, 0.3],
-            accentColor: [0.8, 0.4, 0.7],
-            trailColor: 0xaa4477,
-          },
-          {
-            baseColor: [0.2, 0.1, 0.4],
-            accentColor: [0.6, 0.4, 0.8],
-            trailColor: 0x7744aa,
-          },
-        ],
-        ambientLightColor: 0x401008,
-        starLightColor: 0xffcc88,
-        directionalLights: { color1: 0xff6600, color2: 0xdd3300 },
-        metalMaterialColor: 0x332222,
-        ringColor: 0xff8866,
-        arcColor: 0xffccaa,
-      },
-      {
-        name: "Veridian",
-        starColors: { color1: 0xccffee, color2: 0x66ffcc },
-        planetData: [
-          {
-            baseColor: [0.2, 0.8, 0.5],
-            accentColor: [0.8, 1, 0.9],
-            trailColor: 0x00ffaa,
-          },
-          {
-            baseColor: [0.1, 0.6, 0.7],
-            accentColor: [0.5, 0.9, 1],
-            trailColor: 0x00ccff,
-          },
-          {
-            baseColor: [0.5, 0.8, 0.2],
-            accentColor: [0.9, 1, 0.6],
-            trailColor: 0xaaff00,
-          },
-          {
-            baseColor: [0.3, 0.7, 0.6],
-            accentColor: [0.7, 0.9, 0.8],
-            trailColor: 0x44ddaa,
-          },
-          {
-            baseColor: [0.2, 0.5, 0.8],
-            accentColor: [0.6, 0.8, 1],
-            trailColor: 0x4488dd,
-          },
-          {
-            baseColor: [0.4, 0.6, 0.3],
-            accentColor: [0.8, 0.9, 0.6],
-            trailColor: 0x88cc44,
-          },
-          {
-            baseColor: [0.1, 0.4, 0.5],
-            accentColor: [0.5, 0.7, 0.8],
-            trailColor: 0x448899,
-          },
-        ],
-        ambientLightColor: 0x0a3024,
-        starLightColor: 0xccffdd,
-        directionalLights: { color1: 0x33cc88, color2: 0x4488cc },
-        metalMaterialColor: 0x779988,
-        ringColor: 0x88ffcc,
-        arcColor: 0xeeffee,
-      },
-      {
-        name: "Celestial",
-        starColors: { color1: 0xffe4b5, color2: 0xff8844 },
-        planetData: [
-          {
-            baseColor: [1, 0.4, 0.4],
-            accentColor: [1, 0.8, 0.2],
-            trailColor: 0xff6644,
-          },
-          {
-            baseColor: [0.3, 0.8, 0.3],
-            accentColor: [0.6, 1, 0.8],
-            trailColor: 0x44ff88,
-          },
-          {
-            baseColor: [0.3, 0.4, 1],
-            accentColor: [0.8, 0.6, 1],
-            trailColor: 0x4488ff,
-          },
-          {
-            baseColor: [0.8, 0.6, 0.4],
-            accentColor: [1, 0.9, 0.7],
-            trailColor: 0xffaa66,
-          },
-          {
-            baseColor: [0.6, 0.3, 0.8],
-            accentColor: [0.9, 0.6, 1],
-            trailColor: 0xbb66ff,
-          },
-          {
-            baseColor: [0.4, 0.7, 0.9],
-            accentColor: [0.8, 0.9, 1],
-            trailColor: 0x66ccff,
-          },
-          {
-            baseColor: [0.9, 0.5, 0.6],
-            accentColor: [1, 0.8, 0.8],
-            trailColor: 0xff88aa,
-          },
-        ],
-        ambientLightColor: 0x1a2440,
-        starLightColor: 0xffe4b5,
-        directionalLights: { color1: 0x4488ff, color2: 0x8844ff },
-        metalMaterialColor: 0x4a6080,
-        ringColor: 0x88ccff,
-        arcColor: 0xffeebb,
-      },
-    ];
-
-    function init() {
-      scene = new THREE.Scene();
-      clock = new THREE.Clock();
-      camera = new THREE.PerspectiveCamera(
-        55,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        3000,
-      );
-      
-      // Detect mobile devices and adjust camera position
-      const isMobile = window.innerWidth <= 768 || window.innerHeight <= 700;
-      const isSmallMobile = window.innerWidth <= 480 || window.innerHeight <= 600;
-      
-      if (isSmallMobile) {
-        // For small mobile devices: compact view, closer to title, optimized height
-        camera.position.set(40, 75, 40);
-      } else if (isMobile) {
-        // For tablets and medium devices: balanced view, closer to title, higher up
-        camera.position.set(35, 22, 35);
-      } else {
-        // For desktop: better position to see complete galaxy
-        camera.position.set(15, 28, 35);
-      }
-      
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: "high-performance",
-      });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.2;
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      container.appendChild(renderer.domElement);
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.03;
-      
-      // Adjust control limits based on device type
-      const isDesktop = window.innerWidth > 768 && window.innerHeight > 700;
-      if (isDesktop) {
-        // For desktop: allow closer and further zoom for better exploration
-        controls.minDistance = 15;
-        controls.maxDistance = 200;
-        controls.autoRotateSpeed = 0.1; // Slower rotation for better viewing
-      } else {
-        // For mobile: original limits
-        controls.minDistance = 8;
-        controls.maxDistance = 150;
-        controls.autoRotateSpeed = 0.15;
-      }
-      
-      controls.autoRotate = true;
-      controls.enablePan = false;
-      setupLighting();
-      createOrrery();
-      createEnvironment();
-      createComets();
-      createSpaceship();
-      setupPostProcessing();
-      applyTheme(currentThemeIndex);
-      window.addEventListener("resize", onWindowResize);
-      activateButton.addEventListener("click", activateResonance);
-      resetButton.addEventListener("click", resetView);
-      timeButton.addEventListener("click", toggleTimeAcceleration);
-      themeButton.addEventListener("click", toggleTheme);
-    }
-
-    function setupLighting() {
-      ambientLight = new THREE.AmbientLight(0x1a2440, 0.8);
-      scene.add(ambientLight);
-      starLight = new THREE.PointLight(0xffe4b5, 3, 120, 1.8);
-      starLight.castShadow = true;
-      starLight.shadow.mapSize.width = 2048;
-      starLight.shadow.mapSize.height = 2048;
-      scene.add(starLight);
-      blueLight = new THREE.DirectionalLight(0x4488ff, 0.5);
-      blueLight.position.set(-50, 30, -30);
-      scene.add(blueLight);
-      purpleLight = new THREE.DirectionalLight(0x8844ff, 0.3);
-      purpleLight.position.set(30, -20, 50);
-      scene.add(purpleLight);
-    }
-
-    function setupPostProcessing() {
-      composer = new EffectComposer(renderer);
-      composer.addPass(new RenderPass(scene, camera));
-      const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.6,
-        0.5,
-        0.15,
-      );
-      composer.addPass(bloomPass);
-      composer.addPass(new OutputPass());
-    }
-
-    function createOrrery() {
-      orrery = new THREE.Group();
-      scene.add(orrery);
-      metalMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4a6080,
-        metalness: 0.95,
-        roughness: 0.2,
-        emissive: 0x1a2540,
-        emissiveIntensity: 0.4,
-        envMapIntensity: 1.5,
-      });
-      ringMaterial = new THREE.MeshBasicMaterial({
-        color: 0x88ccff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.4,
-      });
-      const starGeo = new THREE.IcosahedronGeometry(2.2, 2);
-      const starMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0 },
-          intensity: { value: 1 },
-          color1: {
-            value: new THREE.Color(themes[currentThemeIndex].starColors.color1),
-          },
-          color2: {
-            value: new THREE.Color(themes[currentThemeIndex].starColors.color2),
-          },
-        },
-        vertexShader: document.getElementById("starVertexShader").textContent,
-        fragmentShader:
-          document.getElementById("starFragmentShader").textContent,
-      });
-      star = new THREE.Mesh(starGeo, starMaterial);
-      star.castShadow = false;
-      star.receiveShadow = false;
-      orrery.add(star);
-      // Remove all gears below the sun
-      // for (let i = 1; i < 7; i++) {
-      //   const gearGeo = new THREE.TorusGeometry(2.8 + i * 0.5, 0.18, 12, 64);
-      //   const gear = new THREE.Mesh(gearGeo, metalMaterial);
-      //   gear.rotation.x = Math.PI / 2;
-      //   gear.position.y = -2 - i * 0.25;
-      //   gear.userData.rotationSpeed =
-      //     (i % 2 === 0 ? 1 : -1) * (0.08 + i * 0.04);
-      //   gear.castShadow = true;
-      //   gear.receiveShadow = true;
-      //   orrery.add(gear);
-      // }
-      const planetGeometries = [
-        new THREE.OctahedronGeometry(0.6, 1),
-        new THREE.DodecahedronGeometry(0.9, 1),
-        new THREE.IcosahedronGeometry(0.7, 1),
-        new THREE.TetrahedronGeometry(0.8, 1),
-        new THREE.SphereGeometry(0.5, 16, 12),
-        new THREE.BoxGeometry(0.6, 0.6, 0.6),
-        new THREE.ConeGeometry(0.4, 0.8, 8),
-      ];
-      const planetBaseData = [
-        { size: 0.6, distance: 8, speed: 0.6 },
-        { size: 0.9, distance: 14, speed: 0.35 },
-        { size: 0.7, distance: 22, speed: 0.25 },
-        { size: 0.8, distance: 30, speed: 0.18 },
-        { size: 0.5, distance: 38, speed: 0.12 },
-        { size: 0.6, distance: 46, speed: 0.08 },
-        { size: 0.4, distance: 54, speed: 0.06 },
-      ];
-      planetBaseData.forEach((data, i) => {
-        const planetGroup = new THREE.Group();
-        planetGroup.userData.orbitSpeed = data.speed;
-        planetGroup.rotation.y = Math.random() * Math.PI * 2;
-        orrery.add(planetGroup);
-        const ringGeo = new THREE.TorusGeometry(data.distance, 0.02, 8, 64);
-        const ringMaterialSubtle = new THREE.MeshBasicMaterial({
-          color: 0x88ccff,
-          wireframe: true,
-          transparent: true,
-          opacity: 0.15,
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMaterialSubtle);
-        ring.rotation.x = Math.PI / 2;
-        planetGroup.add(ring);
-        const planetMaterial = new THREE.ShaderMaterial({
-          uniforms: {
-            time: { value: 0 },
-            baseColor: {
-              value: new THREE.Vector3(
-                ...themes[currentThemeIndex].planetData[i].baseColor,
-              ),
-            },
-            accentColor: {
-              value: new THREE.Vector3(
-                ...themes[currentThemeIndex].planetData[i].accentColor,
-              ),
-            },
-            energy: { value: 0 },
-          },
-          vertexShader:
-            document.getElementById("planetVertexShader").textContent,
-          fragmentShader: document.getElementById("planetFragmentShader")
-            .textContent,
-        });
-        const planet = new THREE.Mesh(planetGeometries[i], planetMaterial);
-        planet.position.x = data.distance;
-        planet.userData.selfRotation = 0.6;
-        planet.castShadow = true;
-        planet.receiveShadow = true;
-        planetGroup.add(planet);
-        createParticleTrail(
-          planet,
-          themes[currentThemeIndex].planetData[i].trailColor,
-          data.distance,
-        );
-        planets.push({
-          group: planetGroup,
-          body: planet,
-          material: planetMaterial,
-        });
-      });
-    }
-
-    function createParticleTrail(planet, color, radius) {
-      const count = 50;
-      const positions = new Float32Array(count * 3);
-      const colors = new Float32Array(count * 3);
-      const sizes = new Float32Array(count);
-      const c = new THREE.Color(color);
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        positions[i * 3] = Math.cos(angle) * radius;
-        positions[i * 3 + 1] = 0;
-        positions[i * 3 + 2] = Math.sin(angle) * radius;
-        colors[i * 3] = c.r;
-        colors[i * 3 + 1] = c.g;
-        colors[i * 3 + 2] = c.b;
-        sizes[i] = Math.random() * 0.5 + 0.1;
-      }
-      const geom = new THREE.BufferGeometry();
-      geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      geom.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
-      const mat = new THREE.PointsMaterial({
-        size: 0.3,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: true,
-      });
-      const points = new THREE.Points(geom, mat);
-      planet.parent.add(points);
-      particleSystems.push({
-        system: points,
-        planet: planet,
-        positions: positions,
-        radius: radius,
-        currentIndex: 0,
-      });
-    }
-
-    function createComets() {
-      for (let i = 0; i < 3; i++) {
-        const cometGroup = new THREE.Group();
+    </script>
+    
+    <script type="module">
+        // Sistema de depuración
+        const debugPanel = document.getElementById('debug-panel');
+        const debugState = document.getElementById('debug-state');
+        const debugMessages = document.getElementById('debug-messages');
         
-        // Comet head (small sphere)
-        const headGeometry = new THREE.SphereGeometry(0.15, 8, 6);
-        const headMaterial = new THREE.MeshBasicMaterial({
-          color: 0x88ccff,
-          transparent: true,
-          opacity: 0.8,
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        cometGroup.add(head);
-        
-        // Comet tail (particles)
-        const tailGeometry = new THREE.BufferGeometry();
-        const tailPositions = new Float32Array(30 * 3);
-        const tailColors = new Float32Array(30 * 3);
-        
-        for (let j = 0; j < 30; j++) {
-          const t = j / 30;
-          tailPositions[j * 3] = -t * 2; // Behind the comet
-          tailPositions[j * 3 + 1] = (Math.random() - 0.5) * 0.3;
-          tailPositions[j * 3 + 2] = (Math.random() - 0.5) * 0.3;
-          
-          const alpha = 1 - t;
-          tailColors[j * 3] = 0.5 + alpha * 0.5;
-          tailColors[j * 3 + 1] = 0.7 + alpha * 0.3;
-          tailColors[j * 3 + 2] = 1.0;
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `debug-${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugMessages.appendChild(div);
+            debugMessages.scrollTop = debugMessages.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
         }
         
-        tailGeometry.setAttribute('position', new THREE.BufferAttribute(tailPositions, 3));
-        tailGeometry.setAttribute('color', new THREE.BufferAttribute(tailColors, 3));
-        
-        const tailMaterial = new THREE.PointsMaterial({
-          size: 0.1,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.6,
-          blending: THREE.AdditiveBlending,
-        });
-        
-        const tail = new THREE.Points(tailGeometry, tailMaterial);
-        cometGroup.add(tail);
-        
-        // Random orbital parameters
-        cometGroup.userData = {
-          distance: 70 + Math.random() * 30,
-          speed: 0.02 + Math.random() * 0.03,
-          angle: Math.random() * Math.PI * 2,
-          inclination: (Math.random() - 0.5) * 0.5,
-        };
-        
-        scene.add(cometGroup);
-        comets.push(cometGroup);
-      }
-    }
-
-    function createSpaceship() {
-      const spaceshipGroup = new THREE.Group();
-      
-      // Main body
-      const bodyGeometry = new THREE.ConeGeometry(0.3, 1.5, 8);
-      const bodyMaterial = new THREE.MeshBasicMaterial({
-        color: 0xcccccc,
-        transparent: true,
-        opacity: 0.9,
-      });
-      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-      body.rotation.x = Math.PI / 2;
-      spaceshipGroup.add(body);
-      
-      // Wings
-      const wingGeometry = new THREE.BoxGeometry(1.2, 0.1, 0.3);
-      const wingMaterial = new THREE.MeshBasicMaterial({
-        color: 0x888888,
-        transparent: true,
-        opacity: 0.8,
-      });
-      const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-      leftWing.position.set(-0.6, 0, 0);
-      spaceshipGroup.add(leftWing);
-      
-      const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-      rightWing.position.set(0.6, 0, 0);
-      spaceshipGroup.add(rightWing);
-      
-      // Engine glow
-      const engineGeometry = new THREE.SphereGeometry(0.1, 8, 6);
-      const engineMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const engine = new THREE.Mesh(engineGeometry, engineMaterial);
-      engine.position.z = -0.8;
-      spaceshipGroup.add(engine);
-      
-      // Spaceship path parameters
-      spaceshipGroup.userData = {
-        pathRadius: 35,
-        pathSpeed: 0.015,
-        pathAngle: 0,
-        pathHeight: 8,
-      };
-      
-      scene.add(spaceshipGroup);
-      spaceship = spaceshipGroup;
-    }
-
-    function createEnvironment() {
-      const layers = [
-        {
-          count: 3000,
-          distance: [600, 1000],
-          size: [0.8, 1.5],
-          color: 0x6688bb,
-        },
-        { count: 2000, distance: [1000, 1500], size: [1, 2], color: 0x88aadd },
-        {
-          count: 1000,
-          distance: [1500, 2000],
-          size: [1.5, 3],
-          color: 0xaaccff,
-        },
-      ];
-      layers.forEach((layer) => {
-        const positions = new Float32Array(layer.count * 3);
-        const colors = new Float32Array(layer.count * 3);
-        const sizes = new Float32Array(layer.count);
-        const c = new THREE.Color(layer.color);
-        for (let i = 0; i < layer.count; i++) {
-          const u = Math.random(),
-            v = Math.random();
-          const theta = 2 * Math.PI * u;
-          const phi = Math.acos(2 * v - 1);
-          const r =
-            layer.distance[0] +
-            Math.random() * (layer.distance[1] - layer.distance[0]);
-          positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-          positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-          positions[i * 3 + 2] = r * Math.cos(phi);
-          colors[i * 3] = c.r;
-          colors[i * 3 + 1] = c.g;
-          colors[i * 3 + 2] = c.b;
-          sizes[i] =
-            layer.size[0] + Math.random() * (layer.size[1] - layer.size[0]);
+        function setState(state) {
+            debugState.textContent = state;
+            debugState.className = state.toLowerCase().includes('error') ? 'debug-error' : 'debug-success';
         }
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-        geom.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
-        const mat = new THREE.PointsMaterial({
-          size: 2,
-          vertexColors: true,
-          sizeAttenuation: true,
-          transparent: true,
-          opacity: 0.8,
-        });
-        const stars = new THREE.Points(geom, mat);
-        scene.add(stars);
-      });
-    }
-
-    function activateResonance() {
-      if (isResonanceActive) return;
-      isResonanceActive = true;
-      planets.forEach(
-        (p) => (p.body.userData.baseOrbitSpeed = p.group.userData.orbitSpeed),
-      );
-      themes; // preserve reference
-      
-      // Create spectacular resonance wave effect
-      const resonanceWave = {
-        type: "resonanceWave",
-        startTime: clock.getElapsedTime(),
-        duration: 12,
-        update: (elapsed) => {
-          const prog = elapsed / resonanceWave.duration;
-          const wave = Math.sin(prog * Math.PI * 4) * Math.exp(-prog * 2);
-          const intens = wave * 5;
-          
-          // Pulsating star with color changes
-          starLight.intensity = 3 + intens * 4;
-          star.material.uniforms.intensity.value = 1 + intens * 3;
-          star.material.uniforms.color1.value.setHSL(0.1 + prog * 0.3, 1, 0.5 + intens * 0.2);
-          star.material.uniforms.color2.value.setHSL(0.6 - prog * 0.2, 1, 0.5 + intens * 0.2);
-          
-          // Enhanced planet effects
-          metalMaterial.emissiveIntensity = 0.4 + intens * 3;
-          planets.forEach((p, index) => {
-            p.group.userData.orbitSpeed = p.body.userData.baseOrbitSpeed * (1 + intens * 2 + Math.sin(prog * Math.PI * 8 + index) * 0.5);
-            p.material.uniforms.energy.value = intens * (1 + Math.sin(prog * Math.PI * 6 + index) * 0.5);
+        
+        try {
+            log('=== INICIANDO GALAXIA 3D COMPLETA ===', 'info');
+            setState('Cargando módulos...');
             
-            // Add orbital scaling
-            const scale = 1 + Math.sin(prog * Math.PI * 3 + index * 0.5) * intens * 0.3;
-            p.body.scale.setScalar(scale);
-          });
-          
-          // Dynamic lighting
-          ambientLight.intensity = 0.8 + intens * 2;
-          blueLight.intensity = 0.5 + intens * 3;
-          purpleLight.intensity = 0.3 + intens * 2;
-        },
-        end: () => {
-          starLight.intensity = 3;
-          star.material.uniforms.intensity.value = 1;
-          star.material.uniforms.color1.value.set(themes[currentThemeIndex].starColors.color1);
-          star.material.uniforms.color2.value.set(themes[currentThemeIndex].starColors.color2);
-          metalMaterial.emissiveIntensity = 0.4;
-          ambientLight.intensity = 0.8;
-          planets.forEach((p) => {
-            p.group.userData.orbitSpeed = p.body.userData.baseOrbitSpeed;
-            p.material.uniforms.energy.value = 0;
-            p.body.scale.setScalar(1);
-          });
-          isResonanceActive = false;
-        },
-      };
-      activeEffects.push(resonanceWave);
-      
-      // Create multiple types of energy effects
-      createResonanceRings();
-      createEnergySpikes();
-      createParticleBurst();
-      
-      // Enhanced arcs with different patterns
-      for (let i = 0; i < planets.length; i++) {
-        createEnhancedArc(planets[i].body, i === 0 ? star : planets[i - 1].body, 8);
-        createSpiralArc(planets[i].body, star, 6);
-      }
-    }
-
-    function createResonanceRings() {
-      // Create expanding energy rings from the star
-      for (let i = 0; i < 5; i++) {
-        const ringGeo = new THREE.RingGeometry(0.5, 1, 64);
-        const ringMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color().setHSL(0.6, 1, 0.5),
-          transparent: true,
-          opacity: 0.8,
-          side: THREE.DoubleSide,
-        });
-        
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.position.copy(star.position);
-        ring.rotation.x = Math.PI / 2;
-        scene.add(ring);
-        
-        const ringEffect = {
-          type: "resonanceRing",
-          mesh: ring,
-          material: ringMat,
-          startTime: clock.getElapsedTime() + i * 0.3,
-          duration: 4,
-          update: (elapsed) => {
-            const localElapsed = elapsed - (i * 0.3);
-            if (localElapsed < 0) return;
+            // Importar Three.js y addons
+            const THREE = await import('three');
+            const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+            const { EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js');
+            const { RenderPass } = await import('three/addons/postprocessing/RenderPass.js');
+            const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js');
             
-            const prog = localElapsed / 4;
-            const scale = 1 + prog * 15;
-            ring.scale.setScalar(scale);
-            ringMat.opacity = (1 - prog) * 0.8;
-            ringMat.color.setHSL(0.6 + prog * 0.4, 1, 0.5);
-          },
-          end: () => {
-            scene.remove(ring);
-            ringGeo.dispose();
-            ringMat.dispose();
-          },
-        };
-        activeEffects.push(ringEffect);
-      }
-    }
-    
-    function createEnergySpikes() {
-      // Create energy spikes radiating from planets
-      planets.forEach((planet, index) => {
-        const spikeCount = 8;
-        for (let i = 0; i < spikeCount; i++) {
-          const spikeGeo = new THREE.ConeGeometry(0.1, 3, 8);
-          const spikeMat = new THREE.MeshBasicMaterial({
-            color: new THREE.Color().setHSL(0.8 + index * 0.1, 1, 0.6),
-            transparent: true,
-            opacity: 0.9,
-          });
-          
-          const spike = new THREE.Mesh(spikeGeo, spikeMat);
-          const angle = (i / spikeCount) * Math.PI * 2;
-          spike.position.set(
-            Math.cos(angle) * 2,
-            0,
-            Math.sin(angle) * 2
-          );
-          planet.group.add(spike);
-          
-          const spikeEffect = {
-            type: "energySpike",
-            mesh: spike,
-            material: spikeMat,
-            startTime: clock.getElapsedTime() + index * 0.2,
-            duration: 6,
-            update: (elapsed) => {
-              const localElapsed = elapsed - (index * 0.2);
-              if (localElapsed < 0) return;
-              
-              const prog = localElapsed / 6;
-              const pulse = Math.sin(prog * Math.PI * 6) * Math.exp(-prog * 1.5);
-              spike.scale.y = 1 + pulse * 2;
-              spikeMat.opacity = (1 - prog) * 0.9 + pulse * 0.5;
-              spike.rotation.y += 0.1;
-            },
-            end: () => {
-              planet.group.remove(spike);
-              spikeGeo.dispose();
-              spikeMat.dispose();
-            },
-          };
-          activeEffects.push(spikeEffect);
+            log('Todos los módulos cargados ✓', 'success');
+            
+            // Verificar container
+            setState('Verificando DOM...');
+            const container = document.getElementById('container');
+            if (!container) throw new Error('Container no encontrado');
+            log('Container verificado ✓', 'success');
+            
+            // Variables globales
+            let scene, camera, renderer, composer, controls;
+            let star, planets = [], comets = [], bigBangEffect;
+            let timeAcceleration = 1;
+            let currentTheme = 'Celestial';
+            let resonanceActive = false;
+            const clock = new THREE.Clock();
+            // Gestores de naves y asteroides eliminados del sistema
+            // Configuración de visibilidad de naves y asteroides eliminada
+            // Variables para naves y asteroides eliminadas
+            
+            // Definir temas con colores realistas de planetas
+            const themes = {
+                Inferno: {
+                    background: 0x0a0a0a,
+                    star: 0xff4500,
+                    planets: [
+                        0x8c7853, // Mercurio - grisáceo marrón
+                        0xffc649, // Venus - amarillo dorado
+                        0x6b93d6, // Tierra - azul océano
+                        0xcd5c5c, // Marte - rojo oxidado
+                        0xd8ca9d, // Júpiter - beige con bandas
+                        0xfad5a5, // Saturno - amarillo pálido
+                        0x4fd0e7  // Urano - azul verdoso
+                    ],
+                    ambient: 0x1a1a1a,
+                    point: 0xff4500
+                },
+                Veridian: {
+                    background: 0x0a1a0a,
+                    star: 0x44ff88,
+                    planets: [
+                        0x8c7853, // Mercurio - grisáceo marrón
+                        0xffc649, // Venus - amarillo dorado  
+                        0x4a90e2, // Tierra - azul más vibrante
+                        0xe74c3c, // Marte - rojo más intenso
+                        0xe6d690, // Júpiter - amarillo dorado
+                        0xf4e4bc, // Saturno - crema
+                        0x50e3c2  // Urano - turquesa
+                    ],
+                    ambient: 0x1a2a1a,
+                    point: 0x44ff88
+                },
+                Celestial: {
+                    background: 0x0a0a1a,
+                    star: 0xffe4b5,
+                    planets: [
+                        0x8b8680, // Mercurio - gris oscuro
+                        0xffd700, // Venus - oro puro
+                        0x4169e1, // Tierra - azul real
+                        0xdc143c, // Marte - carmesí
+                        0xdaa520, // Júpiter - oro viejo
+                        0xf5deb3, // Saturno - trigo
+                        0x40e0d0  // Urano - turquesa medio
+                    ],
+                    ambient: 0x1a1a2a,
+                    point: 0xffe4b5
+                }
+            };
+            
+            // Funciones principales
+            function createScene() {
+                log('Creando escena...', 'info');
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(themes[currentTheme].background);
+                log('Escena creada ✓', 'success');
+            }
+            
+            function createCamera() {
+                log('Creando cámara...', 'info');
+                camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 3000);
+                // Posicionar la cámara más cerca del área del título con vista completa del sistema solar
+            // Calcular distancia para abarcar todos los planetas
+            const solarSystemRadius = planets.length > 0 ? 
+                Math.max(...planets.map(p => p.distance)) + 5 : 40;
+            
+            // Posición más cercana y baja para estar más abajo
+            camera.position.set(solarSystemRadius * 0.5, solarSystemRadius * 0.4, solarSystemRadius * 0.5);
+                log('Cámara creada ✓', 'success');
+            }
+            
+            function createRenderer() {
+                log('Creando renderer...', 'info');
+                renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    powerPreference: "high-performance"
+                });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.2;
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(renderer.domElement);
+                log('Renderer creado ✓', 'success');
+            }
+            
+            function createPostProcessing() {
+                log('Creando post-procesamiento...', 'info');
+                composer = new EffectComposer(renderer);
+                const renderPass = new RenderPass(scene, camera);
+                composer.addPass(renderPass);
+                
+                const bloomPass = new UnrealBloomPass(
+                    new THREE.Vector2(window.innerWidth, window.innerHeight),
+                    0.8, 0.6, 0.7
+                );
+                composer.addPass(bloomPass);
+                log('Post-procesamiento creado ✓', 'success');
+            }
+            
+            function createStarField() {
+                log('Creando campo de estrellas de fondo...', 'info');
+                const starFieldGeo = new THREE.BufferGeometry();
+                const starFieldCount = 8000;
+                const positions = new Float32Array(starFieldCount * 3);
+                for (let i = 0; i < starFieldCount * 3; i++) {
+                    positions[i] = (Math.random() - 0.5) * 600;
+                }
+                starFieldGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const starFieldMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+                const starField = new THREE.Points(starFieldGeo, starFieldMaterial);
+                scene.add(starField);
+                log('Campo de estrellas creado ✓', 'success');
+            }
+
+            function createStar() {
+                log('Creando estrella central con shaders...', 'info');
+                
+                // Crear campo de estrellas de fondo primero
+                createStarField();
+                
+                // Obtener shaders del DOM
+                const starVertexShader = document.getElementById('starVertexShader').textContent;
+                const starFragmentShader = document.getElementById('starFragmentShader').textContent;
+                
+                const starGeo = new THREE.IcosahedronGeometry(2.2, 2);
+                const starMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        time: { value: 0 },
+                        intensity: { value: 1.0 },
+                        color1: { value: new THREE.Color(themes[currentTheme].star) },
+                        color2: { value: new THREE.Color(themes[currentTheme].star).multiplyScalar(0.7) }
+                    },
+                    vertexShader: starVertexShader,
+                    fragmentShader: starFragmentShader
+                });
+                
+                star = new THREE.Mesh(starGeo, starMaterial);
+                scene.add(star);
+                log('Estrella con shaders creada ✓', 'success');
+            }
+            
+            function createTextSprite(text, color = '#ffffff') {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                
+                // Limpiar el canvas con fondo transparente
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                
+                context.font = 'bold 24px Arial';
+                context.fillStyle = color;
+                context.strokeStyle = '#000000';
+                context.lineWidth = 1.5; // Reducir grosor del borde
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                
+                // Dibujar el borde primero (más delgado)
+                context.strokeText(text, canvas.width / 2, canvas.height / 2);
+                // Luego el relleno
+                context.fillText(text, canvas.width / 2, canvas.height / 2);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    transparent: true,
+                    alphaTest: 0.1 // Mejorar transparencia
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.scale.set(3.5, 0.9, 1); // Ajustar escala
+                
+                return sprite;
+            }
+            
+            function createPlanets() {
+                log('Creando planetas con shaders...', 'info');
+                
+                const planetVertexShader = document.getElementById('planetVertexShader').textContent;
+                const planetFragmentShader = document.getElementById('planetFragmentShader').textContent;
+                
+                const planetData = [
+                    { size: 0.6, distance: 8, speed: 0.6, name: 'Mercurio' },
+                    { size: 0.9, distance: 14, speed: 0.35, name: 'Venus' },
+                    { size: 0.7, distance: 22, speed: 0.25, name: 'Tierra', moons: [{ size: 0.15, distance: 1.2, speed: 2.0, name: 'Luna' }] },
+                    { size: 0.8, distance: 30, speed: 0.18, name: 'Marte', moons: [{ size: 0.08, distance: 1.0, speed: 2.5, name: 'Fobos' }, { size: 0.06, distance: 1.3, speed: 1.8, name: 'Deimos' }] },
+                    { size: 0.5, distance: 38, speed: 0.12, name: 'Júpiter', moons: [{ size: 0.12, distance: 1.5, speed: 1.8, name: 'Ío' }, { size: 0.11, distance: 1.8, speed: 1.4, name: 'Europa' }, { size: 0.13, distance: 2.2, speed: 1.0, name: 'Ganímedes' }, { size: 0.12, distance: 2.6, speed: 0.8, name: 'Calisto' }] },
+                    { size: 0.6, distance: 46, speed: 0.08, name: 'Saturno', moons: [{ size: 0.10, distance: 1.4, speed: 2.2, name: 'Titan' }, { size: 0.08, distance: 1.1, speed: 2.8, name: 'Encélado' }] },
+                    { size: 0.4, distance: 54, speed: 0.06, name: 'Urano', moons: [{ size: 0.09, distance: 1.3, speed: 1.5, name: 'Miranda' }, { size: 0.08, distance: 1.6, speed: 1.2, name: 'Ariel' }] }
+                ];
+                
+                planetData.forEach((data, i) => {
+                    const planetGeo = new THREE.SphereGeometry(data.size, 32, 32);
+                    const planetMaterial = new THREE.ShaderMaterial({
+                        uniforms: {
+                            time: { value: 0 },
+                            baseColor: { value: new THREE.Color(themes[currentTheme].planets[i]) },
+                            accentColor: { value: new THREE.Color(themes[currentTheme].planets[i]).multiplyScalar(1.5) },
+                            energy: { value: 0.0 }
+                        },
+                        vertexShader: planetVertexShader,
+                        fragmentShader: planetFragmentShader
+                    });
+                    
+                    const planet = new THREE.Mesh(planetGeo, planetMaterial);
+                    planet.position.x = data.distance;
+                    planet.castShadow = true;
+                    planet.receiveShadow = true;
+                    scene.add(planet);
+                    
+                    // Crear etiqueta con el nombre del planeta
+                    const label = createTextSprite(data.name, '#ffffff');
+                    label.position.set(data.distance, data.size + 1.5, 0);
+                    scene.add(label);
+                    
+                    // Guardar referencia a la etiqueta para actualizarla después
+                    planet.userData = { label: label };
+                    
+                    // Crear órbita
+                    const orbitGeo = new THREE.RingGeometry(data.distance - 0.1, data.distance + 0.1, 128);
+                    const orbitMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0x88ccff, 
+                        transparent: true, 
+                        opacity: 0.2,
+                        side: THREE.DoubleSide
+                    });
+                    const orbit = new THREE.Mesh(orbitGeo, orbitMaterial);
+                    orbit.rotation.x = Math.PI / 2;
+                    scene.add(orbit);
+                    
+                    // Crear lunas si el planeta las tiene
+                    const moons = [];
+                    if (data.moons) {
+                        data.moons.forEach((moonData, moonIndex) => {
+                            const moonGeo = new THREE.SphereGeometry(moonData.size, 16, 16);
+                            
+                            // Colores realistas para las lunas principales
+                            let moonColor = 0xaaaaaa; // Gris por defecto
+                            if (data.name === 'Tierra') {
+                                moonColor = 0x8c8c8c; // Luna - gris claro
+                            } else if (data.name === 'Marte') {
+                                moonColor = moonData.name === 'Fobos' ? 0x8b7355 : 0x696969; // Fobos marrón, Deimos gris oscuro
+                            } else if (data.name === 'Júpiter') {
+                                if (moonData.name === 'Ío') moonColor = 0xffff99; // Ío - amarillo sulfuroso
+                                else if (moonData.name === 'Europa') moonColor = 0xadd8e6; // Europa - azul hielo
+                                else if (moonData.name === 'Ganímedes') moonColor = 0x8fbc8f; // Ganímedes - verde grisáceo
+                                else if (moonData.name === 'Calisto') moonColor = 0x696969; // Calisto - gris oscuro
+                            } else if (data.name === 'Saturno') {
+                                if (moonData.name === 'Titan') moonColor = 0xdaa520; // Titan - oro oscuro (atmósfera)
+                                else if (moonData.name === 'Encélado') moonColor = 0xf0f8ff; // Encélado - blanco hielo
+                            } else if (data.name === 'Urano') {
+                                moonColor = 0xc0c0c0; // Gris plata para lunas de Urano
+                            }
+                            
+                            const moonMaterial = new THREE.MeshBasicMaterial({ 
+                                color: moonColor,
+                                transparent: true,
+                                opacity: 0.85
+                            });
+                            const moon = new THREE.Mesh(moonGeo, moonMaterial);
+                            moon.castShadow = true;
+                            moon.receiveShadow = true;
+                            scene.add(moon);
+                            
+                            moons.push({
+                                mesh: moon,
+                                distance: moonData.distance,
+                                speed: moonData.speed,
+                                angle: Math.random() * Math.PI * 2,
+                                material: moonMaterial,
+                                name: moonData.name
+                            });
+                            
+                            log(`Luna ${moonData.name} de ${data.name} creada ✓`, 'success');
+                        });
+                    }
+                    
+                    planets.push({
+                        mesh: planet,
+                        distance: data.distance,
+                        speed: data.speed,
+                        angle: Math.random() * Math.PI * 2,
+                        material: planetMaterial,
+                        moons: moons
+                    });
+                    
+                    log(`Planeta ${data.name} con shader creado ✓`, 'success');
+                });
+                log('Planetas con shaders creados ✓', 'success');
+            }
+            
+            function createLighting() {
+                log('Creando iluminación...', 'info');
+                const ambientLight = new THREE.AmbientLight(themes[currentTheme].ambient, 0.8);
+                scene.add(ambientLight);
+                
+                const starLight = new THREE.PointLight(themes[currentTheme].point, 3, 120, 1.8);
+                starLight.castShadow = true;
+                scene.add(starLight);
+                log('Iluminación creada ✓', 'success');
+            }
+            
+            function createControls() {
+                log('Creando controles...', 'info');
+                controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.03;
+                controls.minDistance = 15;
+                controls.maxDistance = 200;
+                controls.autoRotate = true;
+                controls.autoRotateSpeed = 0.1;
+                log('Controles creados ✓', 'success');
+            }
+            
+            function createComets() {
+                log('Creando cometas...', 'info');
+                for (let i = 0; i < 5; i++) {
+                    const cometGeo = new THREE.SphereGeometry(0.15, 8, 8);
+                    const cometMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xffffff,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const comet = new THREE.Mesh(cometGeo, cometMaterial);
+                    
+                    comet.position.set(
+                        (Math.random() - 0.5) * 120,
+                        (Math.random() - 0.5) * 120,
+                        (Math.random() - 0.5) * 120
+                    );
+                    
+                    scene.add(comet);
+                    comets.push({
+                        mesh: comet,
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.8,
+                            (Math.random() - 0.5) * 0.8,
+                            (Math.random() - 0.5) * 0.8
+                        )
+                    });
+                }
+                log('Cometas creados ✓', 'success');
+            }
+            
+            // La función createSpaceship ha sido eliminada del sistema
+            
+            function createBigBangEffect() {
+                log('Creando efecto Big Bang...', 'info');
+                
+                const bigBangVertexShader = document.getElementById('bigBangVertexShader').textContent;
+                const bigBangFragmentShader = document.getElementById('bigBangFragmentShader').textContent;
+                
+                const bigBangGeo = new THREE.SphereGeometry(80, 64, 64);
+                const bigBangMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        time: { value: 0 },
+                        center: { value: new THREE.Vector3(0, 0, 0) },
+                        explosionRadius: { value: 50.0 }
+                    },
+                    vertexShader: bigBangVertexShader,
+                    fragmentShader: bigBangFragmentShader,
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+                
+                bigBangEffect = new THREE.Mesh(bigBangGeo, bigBangMaterial);
+                bigBangEffect.visible = false;
+                scene.add(bigBangEffect);
+                log('Efecto Big Bang creado ✓', 'success');
+            }
+            
+            function activateBigBang() {
+                log('¡ACTIVANDO BIG BANG!', 'warning');
+                bigBangEffect.visible = true;
+                bigBangEffect.material.uniforms.time.value = 0;
+                
+                // Animar el efecto
+                let bigBangTime = 0;
+                const bigBangDuration = 5; // segundos
+                
+                function animateBigBang() {
+                    bigBangTime += 0.016;
+                    bigBangEffect.material.uniforms.time.value = bigBangTime;
+                    
+                    if (bigBangTime < bigBangDuration) {
+                        requestAnimationFrame(animateBigBang);
+                    } else {
+                        bigBangEffect.visible = false;
+                        log('Efecto Big Bang completado ✓', 'success');
+                    }
+                }
+                
+                animateBigBang();
+            }
+            
+            function setupEventListeners() {
+                log('Configurando event listeners...', 'info');
+                
+                window.addEventListener('resize', onWindowResize);
+                
+                // Event listeners para los botones
+                document.getElementById('resetView').addEventListener('click', resetView);
+            document.getElementById('activateTrigger').addEventListener('click', activateResonance);
+            document.getElementById('timeAccel').addEventListener('click', toggleTimeAcceleration);
+            document.getElementById('toggleTheme').addEventListener('click', toggleTheme);
+                
+                log('Event listeners configurados ✓', 'success');
+            }
+            
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                if (composer) {
+                    composer.setSize(window.innerWidth, window.innerHeight);
+                }
+            }
+            
+            function resetView() {
+                camera.position.set(35, 28, 35);
+                camera.lookAt(0, 0, 0);
+                controls.reset();
+                log('Vista reiniciada ✓', 'info');
+            }
+            
+            function toggleTheme() {
+                const themeNames = Object.keys(themes);
+                const currentIndex = themeNames.indexOf(currentTheme);
+                currentTheme = themeNames[(currentIndex + 1) % themeNames.length];
+                
+                // Actualizar colores
+                scene.background = new THREE.Color(themes[currentTheme].background);
+                star.material.uniforms.color1.value = new THREE.Color(themes[currentTheme].star);
+                star.material.uniforms.color2.value = new THREE.Color(themes[currentTheme].star).multiplyScalar(0.7);
+                
+                planets.forEach((p, i) => {
+                    p.material.uniforms.baseColor.value = new THREE.Color(themes[currentTheme].planets[i]);
+                    p.material.uniforms.accentColor.value = new THREE.Color(themes[currentTheme].planets[i]).multiplyScalar(1.5);
+                    
+                    // Actualizar color de las lunas (mantener colores realistas)
+                    if (p.moons) {
+                        p.moons.forEach(moon => {
+                            // No cambiar los colores realistas de las lunas
+                            // Solo ajustar la opacidad para que se vean bien con el nuevo tema
+                            moon.material.opacity = 0.85;
+                        });
+                    }
+                });
+                
+                // Actualizar texto del botón
+                document.getElementById('toggleTheme').textContent = `Theme: ${currentTheme}`;
+                
+                log(`Tema cambiado a: ${currentTheme} ✓`, 'info');
+            }
+            
+            function activateResonance() {
+                // Si la resonancia ya está activa, no hacer nada
+                if (resonanceActive) return;
+                
+                resonanceActive = true;
+                log('Resonancia activada ✓', 'info');
+                
+                // Efecto temporal en el botón (sin mantener estado)
+                const activateButton = document.getElementById('activateTrigger');
+                
+                // Añadir clase temporalmente para efecto visual
+                activateButton.classList.add('resonance-active');
+                
+                // Remover clase después de 300ms para efecto de clic
+                setTimeout(() => {
+                    activateButton.classList.remove('resonance-active');
+                }, 300);
+                
+                // Crear efectos de resonancia
+                createEnhancedResonanceEffects();
+                
+                // Auto-desactivar después de 5 segundos
+                setTimeout(() => {
+                    if (resonanceActive) {
+                        resonanceActive = false;
+                        clearResonanceEffects();
+                        log('Resonancia auto-desactivada ✓', 'info');
+                    }
+                }, 5000);
+                
+                // Efecto visual de resonancia mejorado
+                planets.forEach(p => {
+                    p.material.uniforms.energy.value = 2.0;
+                    
+                    // Efecto de escala y pulso en planetas
+                    p.body.userData.originalScale = p.body.scale.clone();
+                    p.body.userData.pulsePhase = Math.random() * Math.PI * 2;
+                    
+                    // Efecto en las lunas
+                    if (p.moons) {
+                        p.moons.forEach(moon => {
+                            // Efecto de resonancia con colores específicos para cada luna
+                            if (moon.name === 'Luna') {
+                                moon.material.color = new THREE.Color(0xffffff); // Blanco brillante para la Luna
+                            } else if (moon.name === 'Fobos' || moon.name === 'Deimos') {
+                                moon.material.color = new THREE.Color(0xff8c69); // Naranja rojizo para lunas marcianas
+                            } else if (moon.name === 'Ío') {
+                                moon.material.color = new THREE.Color(0xffff99); // Amarillo brillante para Ío
+                            } else if (moon.name === 'Europa') {
+                                moon.material.color = new THREE.Color(0x87ceeb); // Azul cielo para Europa
+                            } else if (moon.name === 'Titan') {
+                                moon.material.color = new THREE.Color(0xffa500); // Naranja para Titan
+                            } else if (moon.name === 'Encélado') {
+                                moon.material.color = new THREE.Color(0xf0f8ff); // Blanco azulado para Encélado
+                            } else {
+                                moon.material.color = new THREE.Color(0x87ceeb); // Azul por defecto
+                            }
+                            moon.material.opacity = 1.0;
+                            moon.userData.resonanceGlow = true;
+                        });
+                    }
+                });
+                
+                star.material.uniforms.intensity.value = 3.0;
+            }
+            
+            function createEnhancedResonanceEffects() {
+                // Rayos eléctricos entre planetas
+                createElectricRays();
+            }
+            
+            function clearResonanceEffects() {
+                // Limpiar efectos especiales
+                resonanceEffects.forEach(effect => {
+                    if (effect.mesh) scene.remove(effect.mesh);
+                    if (effect.geometry) effect.geometry.dispose();
+                    if (effect.material) effect.material.dispose();
+                });
+                resonanceEffects = [];
+                
+                // Restaurar iluminación normal
+                ambientLight.intensity = 0.4;
+                if (camera.userData.originalPosition) {
+                    camera.position.copy(camera.userData.originalPosition);
+                }
+            }
+            
+            // Variables globales para efectos de resonancia
+            let resonanceEffects = [];
+            
+            function createShockWave() {
+                // Onda de choque expansiva
+                const geometry = new THREE.RingGeometry(0.1, 50, 64);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x00ffff,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                
+                const shockWave = new THREE.Mesh(geometry, material);
+                shockWave.position.copy(star.position);
+                shockWave.rotation.x = Math.PI / 2;
+                scene.add(shockWave);
+                
+                const effect = {
+                    mesh: shockWave,
+                    material: material,
+                    geometry: geometry,
+                    startTime: Date.now(),
+                    duration: 3000,
+                    update: function() {
+                        const elapsed = Date.now() - this.startTime;
+                        const progress = elapsed / this.duration;
+                        
+                        if (progress >= 1) {
+                            scene.remove(this.mesh);
+                            this.geometry.dispose();
+                            this.material.dispose();
+                            return false;
+                        }
+                        
+                        const scale = 1 + progress * 20;
+                        this.mesh.scale.setScalar(scale);
+                        this.material.opacity = (1 - progress) * 0.8;
+                        this.material.color.setHSL(0.5 + progress * 0.3, 1, 0.5);
+                        
+                        return true;
+                    }
+                };
+                
+                resonanceEffects.push(effect);
+            }
+            
+            function createEnergySpiral() {
+                // Espiral de energía alrededor del sistema
+                const points = [];
+                for (let i = 0; i <= 100; i++) {
+                    const t = i / 100;
+                    const radius = 5 + t * 20;
+                    const height = t * 15 - 7.5;
+                    const angle = t * Math.PI * 4;
+                    
+                    points.push(new THREE.Vector3(
+                        Math.cos(angle) * radius,
+                        height,
+                        Math.sin(angle) * radius
+                    ));
+                }
+                
+                const curve = new THREE.CatmullRomCurve3(points);
+                const geometry = new THREE.TubeGeometry(curve, 200, 0.3, 8, false);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff00ff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const spiral = new THREE.Mesh(geometry, material);
+                scene.add(spiral);
+                
+                const effect = {
+                    mesh: spiral,
+                    material: material,
+                    geometry: geometry,
+                    startTime: Date.now(),
+                    duration: 5000,
+                    update: function() {
+                        const elapsed = Date.now() - this.startTime;
+                        const progress = elapsed / this.duration;
+                        
+                        if (progress >= 1) {
+                            scene.remove(this.mesh);
+                            this.geometry.dispose();
+                            this.material.dispose();
+                            return false;
+                        }
+                        
+                        this.mesh.rotation.y += 0.03;
+                        this.mesh.rotation.x += 0.01;
+                        this.material.opacity = (1 - progress) * 0.8;
+                        this.material.color.setHSL(progress * 0.8, 1, 0.5);
+                        
+                        return true;
+                    }
+                };
+                
+                resonanceEffects.push(effect);
+            }
+            
+            function createParticleStorm() {
+                // Tormenta de partículas energéticas
+                const particleCount = 1500;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                const velocities = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    const radius = Math.random() * 50 + 10;
+                    const angle = Math.random() * Math.PI * 2;
+                    const height = (Math.random() - 0.5) * 30;
+                    
+                    positions[i3] = Math.cos(angle) * radius;
+                    positions[i3 + 1] = height;
+                    positions[i3 + 2] = Math.sin(angle) * radius;
+                    
+                    colors[i3] = Math.random();
+                    colors[i3 + 1] = Math.random();
+                    colors[i3 + 2] = Math.random();
+                    
+                    velocities[i3] = (Math.random() - 0.5) * 0.2;
+                    velocities[i3 + 1] = (Math.random() - 0.5) * 0.2;
+                    velocities[i3 + 2] = (Math.random() - 0.5) * 0.2;
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    size: 3,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.9,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const particles = new THREE.Points(geometry, material);
+                scene.add(particles);
+                
+                const effect = {
+                    mesh: particles,
+                    material: material,
+                    geometry: geometry,
+                    startTime: Date.now(),
+                    duration: 6000,
+                    update: function() {
+                        const elapsed = Date.now() - this.startTime;
+                        const progress = elapsed / this.duration;
+                        
+                        if (progress >= 1) {
+                            scene.remove(this.mesh);
+                            this.geometry.dispose();
+                            this.material.dispose();
+                            return false;
+                        }
+                        
+                        const positions = this.geometry.attributes.position.array;
+                        const velocities = this.geometry.attributes.velocity.array;
+                        
+                        for (let i = 0; i < positions.length; i += 3) {
+                            positions[i] += velocities[i];
+                            positions[i + 1] += velocities[i + 1];
+                            positions[i + 2] += velocities[i + 2];
+                            
+                            // Aplicar fuerza hacia el centro
+                            const dx = -positions[i];
+                            const dz = -positions[i + 2];
+                            const distance = Math.sqrt(dx * dx + dz * dz);
+                            
+                            if (distance > 0) {
+                                velocities[i] += dx / distance * 0.001;
+                                velocities[i + 2] += dz / distance * 0.001;
+                            }
+                        }
+                        
+                        this.geometry.attributes.position.needsUpdate = true;
+                        this.material.opacity = (1 - progress) * 0.9;
+                        this.mesh.rotation.y += 0.02;
+                        
+                        return true;
+                    }
+                };
+                
+                resonanceEffects.push(effect);
+            }
+            
+            function createCameraShake() {
+                // Efecto de sacudida de cámara cinematográfica
+                if (!camera.userData.originalPosition) {
+                    camera.userData.originalPosition = camera.position.clone();
+                }
+                
+                const shakeIntensity = 0.8;
+                const shakeDuration = 4000;
+                const startTime = Date.now();
+                
+                function shake() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / shakeDuration;
+                    
+                    if (progress >= 1) {
+                        camera.position.copy(camera.userData.originalPosition);
+                        return;
+                    }
+                    
+                    const intensity = shakeIntensity * (1 - progress);
+                    const frequency = 0.1;
+                    
+                    camera.position.x = camera.userData.originalPosition.x + Math.sin(elapsed * frequency) * intensity;
+                    camera.position.y = camera.userData.originalPosition.y + Math.cos(elapsed * frequency * 1.3) * intensity * 0.5;
+                    camera.position.z = camera.userData.originalPosition.z + Math.sin(elapsed * frequency * 0.7) * intensity * 0.8;
+                    
+                    requestAnimationFrame(shake);
+                }
+                
+                shake();
+            }
+            
+            function createStrobeLighting() {
+                // Iluminación estroboscópica dinámica
+                const startTime = Date.now();
+                const duration = 5000;
+                const originalIntensity = ambientLight.intensity;
+                
+                function strobe() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / duration;
+                    
+                    if (progress >= 1) {
+                        ambientLight.intensity = originalIntensity;
+                        return;
+                    }
+                    
+                    const strobeFreq = 0.05; // Frecuencia del estroboscopio
+                    const intensity = originalIntensity + Math.sin(elapsed * strobeFreq) * 0.8;
+                    ambientLight.intensity = Math.max(0.1, intensity);
+                    
+                    // Cambiar colores de las luces dinámicamente
+                    const hue = (elapsed * 0.001) % 1;
+                    blueLight.color.setHSL(hue, 1, 0.5);
+                    purpleLight.color.setHSL((hue + 0.5) % 1, 1, 0.5);
+                    
+                    requestAnimationFrame(strobe);
+                }
+                
+                strobe();
+            }
+            
+            function createResonanceWaves() {
+                // Múltiples ondas de resonancia concéntricas
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                        const material = new THREE.MeshBasicMaterial({
+                            color: 0x00ffff,
+                            transparent: true,
+                            opacity: 0.7,
+                            wireframe: true
+                        });
+                        
+                        const wave = new THREE.Mesh(geometry, material);
+                        wave.position.copy(star.position);
+                        scene.add(wave);
+                        
+                        const effect = {
+                            mesh: wave,
+                            material: material,
+                            geometry: geometry,
+                            startTime: Date.now(),
+                            duration: 2500,
+                            update: function() {
+                                const elapsed = Date.now() - this.startTime;
+                                const progress = elapsed / this.duration;
+                                
+                                if (progress >= 1) {
+                                    scene.remove(this.mesh);
+                                    this.geometry.dispose();
+                                    this.material.dispose();
+                                    return false;
+                                }
+                                
+                                const scale = 1 + progress * 25;
+                                this.mesh.scale.setScalar(scale);
+                                this.material.opacity = (1 - progress) * 0.7;
+                                this.material.color.setHSL(0.5 + progress * 0.4, 1, 0.5);
+                                
+                                return true;
+                            }
+                        };
+                        
+                        resonanceEffects.push(effect);
+                    }, i * 300);
+                }
+            }
+            
+            function createPlanetConnections() {
+                // Crear líneas energéticas entre planetas cercanos
+                const connectionMaterial = new THREE.LineBasicMaterial({
+                    color: 0x4488ff,
+                    transparent: true,
+                    opacity: 0.4
+                });
+                
+                // Conectar planetas cercanos
+                for (let i = 0; i < planets.length; i++) {
+                    for (let j = i + 1; j < planets.length; j++) {
+                        const planet1 = planets[i];
+                        const planet2 = planets[j];
+                        
+                        // Solo conectar planetas que están relativamente cerca
+                        const distance = planet1.mesh.position.distanceTo(planet2.mesh.position);
+                        if (distance < 30) {
+                            const points = [
+                                planet1.mesh.position.clone(),
+                                planet2.mesh.position.clone()
+                            ];
+                            
+                            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                            const line = new THREE.Line(geometry, connectionMaterial);
+                            scene.add(line);
+                            
+                            const effect = {
+                                mesh: line,
+                                material: connectionMaterial,
+                                geometry: geometry,
+                                startTime: Date.now(),
+                                duration: 8000,
+                                planet1: planet1.mesh,
+                                planet2: planet2.mesh,
+                                update: function() {
+                                    const elapsed = Date.now() - this.startTime;
+                                    const progress = elapsed / this.duration;
+                                    
+                                    if (progress >= 1) {
+                                        scene.remove(this.mesh);
+                                        this.geometry.dispose();
+                                        return false;
+                                    }
+                                    
+                                    // Actualizar posiciones de las líneas
+                                    const points = [
+                                        this.planet1.position.clone(),
+                                        this.planet2.position.clone()
+                                    ];
+                                    this.geometry.setFromPoints(points);
+                                    
+                                    // Efecto de pulso en la opacidad
+                                    const pulse = 0.2 + Math.sin(elapsed * 0.005) * 0.2;
+                                    this.material.opacity = pulse;
+                                    
+                                    // Cambiar color suavemente
+                                    const hue = (elapsed * 0.0001) % 1;
+                                    this.material.color.setHSL(hue, 0.7, 0.6);
+                                    
+                                    return true;
+                                }
+                            };
+                            
+                            resonanceEffects.push(effect);
+                        }
+                    }
+                }
+            }
+            
+            function createEnergyFlow() {
+                // Crear partículas que fluyen entre planetas
+                const particleCount = 100;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    // Distribuir partículas entre planetas
+                    const planetIndex = Math.floor(Math.random() * planets.length);
+                    const planet = planets[planetIndex];
+                    
+                    positions[i * 3] = planet.mesh.position.x + (Math.random() - 0.5) * 5;
+                    positions[i * 3 + 1] = (Math.random() - 0.5) * 2;
+                    positions[i * 3 + 2] = planet.mesh.position.z + (Math.random() - 0.5) * 5;
+                    
+                    colors[i * 3] = 0.3 + Math.random() * 0.7;
+                    colors[i * 3 + 1] = 0.6 + Math.random() * 0.4;
+                    colors[i * 3 + 2] = 1.0;
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    size: 2,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const particles = new THREE.Points(geometry, material);
+                scene.add(particles);
+                
+                const effect = {
+                    mesh: particles,
+                    material: material,
+                    geometry: geometry,
+                    startTime: Date.now(),
+                    duration: 10000,
+                    update: function() {
+                        const elapsed = Date.now() - this.startTime;
+                        const progress = elapsed / this.duration;
+                        
+                        if (progress >= 1) {
+                            scene.remove(this.mesh);
+                            this.geometry.dispose();
+                            this.material.dispose();
+                            return false;
+                        }
+                        
+                        const positions = this.geometry.attributes.position.array;
+                        const colors = this.geometry.attributes.color.array;
+                        
+                        // Mover partículas suavemente entre planetas
+                        for (let i = 0; i < positions.length; i += 9) { // Procesar en grupos de 3 partículas
+                            const planetIndex = Math.floor((i / 9) % planets.length);
+                            const planet = planets[planetIndex];
+                            const nextPlanetIndex = (planetIndex + 1) % planets.length;
+                            const nextPlanet = planets[nextPlanetIndex];
+                            
+                            if (planet && nextPlanet) {
+                                const t = (elapsed * 0.0005 + i * 0.01) % 1;
+                                const x = planet.mesh.position.x * (1 - t) + nextPlanet.mesh.position.x * t;
+                                const z = planet.mesh.position.z * (1 - t) + nextPlanet.mesh.position.z * t;
+                                
+                                positions[i] = x + Math.sin(elapsed * 0.003 + i) * 2;
+                                positions[i + 1] = Math.sin(elapsed * 0.002 + i) * 1;
+                                positions[i + 2] = z + Math.cos(elapsed * 0.003 + i) * 2;
+                                
+                                // Efecto de color pulsante
+                                const pulse = 0.5 + Math.sin(elapsed * 0.004 + i) * 0.5;
+                                colors[i] = pulse;
+                                colors[i + 1] = pulse * 0.8;
+                                colors[i + 2] = 1.0;
+                            }
+                        }
+                        
+                        this.geometry.attributes.position.needsUpdate = true;
+                        this.geometry.attributes.color.needsUpdate = true;
+                        this.material.opacity = 0.4 + Math.sin(elapsed * 0.002) * 0.2;
+                        
+                        return true;
+                    }
+                };
+                
+                resonanceEffects.push(effect);
+            }
+            
+            function createSubtleGlow() {
+                // Resplandor sutil alrededor de la estrella
+                const geometry = new THREE.SphereGeometry(2, 32, 32);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x88ccff,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.BackSide
+                });
+                
+                const glow = new THREE.Mesh(geometry, material);
+                glow.position.copy(star.position);
+                scene.add(glow);
+                
+                const effect = {
+                    mesh: glow,
+                    material: material,
+                    geometry: geometry,
+                    startTime: Date.now(),
+                    duration: 12000,
+                    update: function() {
+                        const elapsed = Date.now() - this.startTime;
+                        const progress = elapsed / this.duration;
+                        
+                        if (progress >= 1) {
+                            scene.remove(this.mesh);
+                            this.geometry.dispose();
+                            this.material.dispose();
+                            return false;
+                        }
+                        
+                        // Efecto de respiración sutil
+                        const breathe = 1 + Math.sin(elapsed * 0.001) * 0.3;
+                        this.mesh.scale.setScalar(breathe);
+                        
+                        // Opacidad muy sutil
+                        this.material.opacity = 0.1 + Math.sin(elapsed * 0.0008) * 0.1;
+                        
+                        // Rotación lenta
+                        this.mesh.rotation.y += 0.005;
+                        this.mesh.rotation.x += 0.003;
+                        
+                        return true;
+                    }
+                };
+                
+                resonanceEffects.push(effect);
+            }
+            
+            function createPlanetaryWaves() {
+                // Crear ondas concéntricas desde cada planeta como piedras en el agua
+                planets.forEach((planet, planetIndex) => {
+                    // Crear múltiples ondas por cada planeta
+                    for (let waveIndex = 0; waveIndex < 4; waveIndex++) {
+                        setTimeout(() => {
+                            // Crear geometría de anillo para la onda
+                            const geometry = new THREE.RingGeometry(0.1, 1, 64);
+                            const material = new THREE.MeshBasicMaterial({
+                                color: planet.color || 0x4488ff,
+                                transparent: true,
+                                opacity: 0.6,
+                                side: THREE.DoubleSide
+                            });
+                            
+                            const wave = new THREE.Mesh(geometry, material);
+                            wave.position.copy(planet.mesh.position);
+                            wave.rotation.x = Math.PI / 2; // Orientar horizontalmente
+                            scene.add(wave);
+                            
+                            const effect = {
+                                mesh: wave,
+                                material: material,
+                                geometry: geometry,
+                                startTime: Date.now(),
+                                duration: 3000,
+                                planet: planet.mesh,
+                                update: function() {
+                                    const elapsed = Date.now() - this.startTime;
+                                    const progress = elapsed / this.duration;
+                                    
+                                    if (progress >= 1) {
+                                        scene.remove(this.mesh);
+                                        this.geometry.dispose();
+                                        this.material.dispose();
+                                        return false;
+                                    }
+                                    
+                                    // Actualizar posición para seguir al planeta
+                                    this.mesh.position.copy(this.planet.position);
+                                    
+                                    // Expandir la onda como en el agua
+                                    const scale = 1 + progress * 8; // Expandir 8 veces su tamaño
+                                    this.mesh.scale.setScalar(scale);
+                                    
+                                    // Desvanecer la opacidad
+                                    this.material.opacity = (1 - progress) * 0.6;
+                                    
+                                    // Cambiar color suavemente
+                                    const hue = (elapsed * 0.0005) % 1;
+                                    this.material.color.setHSL(hue, 0.7, 0.6);
+                                    
+                                    // Rotar ligeramente para efecto dinámico
+                                    this.mesh.rotation.z += 0.01;
+                                    
+                                    return true;
+                                }
+                            };
+                            
+                            resonanceEffects.push(effect);
+                        }, waveIndex * 500); // Espaciar las ondas en el tiempo
+                    }
+                });
+            }
+            
+            function createStellarPulse() {
+                // Pulso de energía desde la estrella central que alcanza el último planeta
+                // Calcular la distancia máxima al último planeta
+                const maxDistance = planets.length > 0 ? 
+                    Math.max(...planets.map(p => p.mesh.position.distanceTo(star.position))) : 30;
+                
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const geometry = new THREE.RingGeometry(0.5, 2, 64);
+                        const material = new THREE.MeshBasicMaterial({
+                            color: 0xffff00,
+                            transparent: true,
+                            opacity: 0.8,
+                            side: THREE.DoubleSide
+                        });
+                        
+                        const pulse = new THREE.Mesh(geometry, material);
+                        pulse.position.copy(star.position);
+                        pulse.rotation.x = Math.PI / 2;
+                        scene.add(pulse);
+                        
+                        const effect = {
+                            mesh: pulse,
+                            material: material,
+                            geometry: geometry,
+                            startTime: Date.now(),
+                            duration: 3000,
+                            maxDistance: maxDistance,
+                            update: function() {
+                                const elapsed = Date.now() - this.startTime;
+                                const progress = elapsed / this.duration;
+                                
+                                if (progress >= 1) {
+                                    scene.remove(this.mesh);
+                                    this.geometry.dispose();
+                                    this.material.dispose();
+                                    return false;
+                                }
+                                
+                                // Pulso suave y fluido sin efecto de cuadros
+                                const easeProgress = 1 - Math.pow(1 - progress, 3); // Easing cúbico para suavidad
+                                const maxScale = this.maxDistance / 1.5; // Escalar para alcanzar el último planeta
+                                const scale = 1 + easeProgress * maxScale;
+                                const opacity = (1 - easeProgress) * 0.7; // Desvanecimiento suave
+                                
+                                this.mesh.scale.setScalar(scale);
+                                this.material.opacity = Math.max(0, opacity);
+                                
+                                // Cambio de color suave del amarillo al rojo
+                                const hue = 0.15 + easeProgress * 0.12;
+                                const saturation = 0.8 + easeProgress * 0.2;
+                                const lightness = 0.5 + Math.sin(easeProgress * Math.PI) * 0.2;
+                                this.material.color.setHSL(hue, saturation, lightness);
+                                
+                                return true;
+                            }
+                        };
+                        
+                        resonanceEffects.push(effect);
+                    }, i * 500);
+                }
+            }
+            
+            function createElectricRays() {
+                // Rayos eléctricos realistas conectando todos los planetas
+                const rayMaterial = new THREE.LineBasicMaterial({
+                    color: 0x00ffff,
+                    transparent: true,
+                    opacity: 0.9,
+                    linewidth: 3
+                });
+                
+                // Crear rayos entre todos los planetas (no solo adyacentes)
+                for (let i = 0; i < planets.length; i++) {
+                    for (let j = i + 1; j < planets.length; j++) {
+                        const planet1 = planets[i];
+                        const planet2 = planets[j];
+                        
+                        // Crear rayo con segmentos para efecto eléctrico
+                        const segments = 8;
+                        const points = [];
+                        const startPos = planet1.mesh.position.clone();
+                        const endPos = planet2.mesh.position.clone();
+                        
+                        // Generar puntos intermedios con desviación aleatoria para efecto eléctrico
+                        for (let s = 0; s <= segments; s++) {
+                            const t = s / segments;
+                            const point = startPos.clone().lerp(endPos, t);
+                            
+                            // Añadir desviación eléctrica
+                            const deviation = Math.sin(t * Math.PI * 4) * 0.5;
+                            point.x += (Math.random() - 0.5) * deviation;
+                            point.y += (Math.random() - 0.5) * deviation;
+                            point.z += (Math.random() - 0.5) * deviation;
+                            
+                            points.push(point);
+                        }
+                        
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const ray = new THREE.Line(geometry, rayMaterial.clone());
+                        scene.add(ray);
+                        
+                        const effect = {
+                            mesh: ray,
+                            material: ray.material,
+                            geometry: geometry,
+                            startTime: Date.now(),
+                            duration: 2000,
+                            planet1: planet1.mesh,
+                            planet2: planet2.mesh,
+                            originalPoints: points.map(p => p.clone()),
+                            update: function() {
+                                const elapsed = Date.now() - this.startTime;
+                                const progress = elapsed / this.duration;
+                                
+                                if (progress >= 1) {
+                                    scene.remove(this.mesh);
+                                    this.geometry.dispose();
+                                    this.material.dispose();
+                                    return false;
+                                }
+                                
+                                // Actualizar posiciones siguiendo a los planetas
+                                const startPos = this.planet1.position.clone();
+                                const endPos = this.planet2.position.clone();
+                                
+                                // Regenerar puntos con nueva desviación eléctrica
+                                const newPoints = [];
+                                const segments = 8;
+                                
+                                for (let s = 0; s <= segments; s++) {
+                                    const t = s / segments;
+                                    const point = startPos.clone().lerp(endPos, t);
+                                    
+                                    // Desviación eléctrica dinámica
+                                    const deviation = Math.sin(t * Math.PI * 4 + elapsed * 0.01) * 0.3;
+                                    point.x += (Math.random() - 0.5) * deviation;
+                                    point.y += (Math.random() - 0.5) * deviation;
+                                    point.z += (Math.random() - 0.5) * deviation;
+                                    
+                                    newPoints.push(point);
+                                }
+                                
+                                this.geometry.setFromPoints(newPoints);
+                                
+                                // Efecto de parpadeo eléctrico
+                                const flicker = 0.6 + Math.sin(elapsed * 0.02) * 0.4;
+                                this.material.opacity = flicker;
+                                
+                                // Color eléctrico con variación
+                                const hue = 0.5 + Math.sin(elapsed * 0.005) * 0.1;
+                                this.material.color.setHSL(hue, 1, 0.6);
+                                
+                                return true;
+                            }
+                        };
+                        
+                        resonanceEffects.push(effect);
+                    }
+                }
+            }
+            
+            function toggleTimeAcceleration() {
+                if (timeAcceleration === 1) {
+                    timeAcceleration = 2;
+                } else if (timeAcceleration === 2) {
+                    timeAcceleration = 5;
+                } else if (timeAcceleration === 5) {
+                    timeAcceleration = 10;
+                } else if (timeAcceleration === 10) {
+                    timeAcceleration = 0.5;
+                } else {
+                    timeAcceleration = 1;
+                }
+                document.getElementById('timeAccel').textContent = `Time: ${timeAcceleration}x`;
+                log(`Velocidad del tiempo: ${timeAcceleration}x ✓`, 'info');
+            }
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                const delta = clock.getDelta() * timeAcceleration;
+                const t = clock.getElapsedTime();
+                
+                // Actualizar shaders
+                if (star) {
+                    star.material.uniforms.time.value = t;
+                }
+                
+                planets.forEach(p => {
+                    p.material.uniforms.time.value = t;
+                    p.angle += delta * p.speed;
+                    p.mesh.position.x = Math.cos(p.angle) * p.distance;
+                    p.mesh.position.z = Math.sin(p.angle) * p.distance;
+                    p.mesh.rotation.y += delta * 0.6;
+                    
+                    // Actualizar posición de la etiqueta para que siga al planeta
+                    if (p.mesh.userData.label) {
+                        p.mesh.userData.label.position.set(
+                            p.mesh.position.x,
+                            p.mesh.position.y + p.mesh.geometry.parameters.radius + 1.5,
+                            p.mesh.position.z
+                        );
+                    }
+                    
+                    // Efecto de pulso en planetas durante resonancia
+                    if (resonanceActive && p.mesh.userData.originalScale) {
+                        const pulseScale = 1 + Math.sin(t * 3 + p.mesh.userData.pulsePhase) * 0.3;
+                        p.mesh.scale.copy(p.mesh.userData.originalScale).multiplyScalar(pulseScale);
+                    }
+                    
+                    // Actualizar posición de las lunas
+                    if (p.moons) {
+                        p.moons.forEach(moon => {
+                            moon.angle += delta * moon.speed;
+                            // Posición relativa al planeta
+                            const moonX = p.mesh.position.x + Math.cos(moon.angle) * moon.distance;
+                            const moonZ = p.mesh.position.z + Math.sin(moon.angle) * moon.distance;
+                            moon.mesh.position.set(moonX, 0, moonZ);
+                            
+                            // Efecto de rotación adicional en lunas durante resonancia
+                            if (resonanceActive && moon.mesh.userData.resonanceGlow) {
+                                moon.mesh.rotation.y += delta * 0.5;
+                                moon.mesh.rotation.x += delta * 0.2;
+                            }
+                        });
+                    }
+                });
+                
+                // Animar cometas
+                comets.forEach(c => {
+                    c.mesh.position.add(c.velocity.clone().multiplyScalar(delta));
+                    if (c.mesh.position.length() > 150) {
+                        c.mesh.position.set(
+                            (Math.random() - 0.5) * 120,
+                            (Math.random() - 0.5) * 120,
+                            (Math.random() - 0.5) * 120
+                        );
+                    }
+                });
+                
+                // Animación de naves espaciales eliminada del sistema
+                
+                // Naves y asteroides eliminados según solicitud del usuario
+                
+                // Actualizar efectos de resonancia
+                resonanceEffects = resonanceEffects.filter(effect => effect.update());
+                
+                if (controls) controls.update();
+                
+                if (composer) {
+                    composer.render();
+                } else if (renderer) {
+                    renderer.render(scene, camera);
+                }
+            }
+            
+            // Inicializar todo
+            setState('Inicializando sistema completo...');
+            createScene();
+            createCamera();
+            createRenderer();
+            createPostProcessing();
+            createStar();
+            createPlanets();
+            createLighting();
+            createControls();
+            createComets();
+            // Las naves espaciales han sido eliminadas del sistema
+            createBigBangEffect();
+            setupEventListeners();
+            
+            // Naves y asteroides eliminados según solicitud del usuario
+            
+            // Funciones de naves y asteroides eliminadas según solicitud del usuario
+            
+            setState('¡GALAXIA COMPLETA FUNCIONANDO!');
+            log('=== SISTEMA SOLAR 3D CON BIG BANG Y OBJETOS ESPACIALES INICIADO ===', 'success');
+            
+            // Iniciar animación
+            animate();
+            
+        } catch (error) {
+            setState('ERROR CRÍTICO');
+            log('ERROR FATAL: ' + error.message, 'error');
+            log('Stack: ' + error.stack, 'error');
+            console.error('Error completo:', error);
         }
-      });
-    }
-    
-    function createParticleBurst() {
-      // Create burst of particles from the star
-      const particleCount = 200;
-      const positions = new Float32Array(particleCount * 3);
-      const colors = new Float32Array(particleCount * 3);
-      const sizes = new Float32Array(particleCount);
-      
-      for (let i = 0; i < particleCount; i++) {
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.random() * Math.PI;
-        const r = 0.5;
-        
-        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-        positions[i * 3 + 2] = r * Math.cos(phi);
-        
-        const color = new THREE.Color().setHSL(Math.random(), 1, 0.5);
-        colors[i * 3] = color.r;
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
-        
-        sizes[i] = Math.random() * 3 + 1;
-      }
-      
-      const particleGeo = new THREE.BufferGeometry();
-      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-      
-      const particleMat = new THREE.PointsMaterial({
-        size: 2,
-        vertexColors: true,
-        transparent: true,
-        opacity: 1,
-        blending: THREE.AdditiveBlending,
-      });
-      
-      const particles = new THREE.Points(particleGeo, particleMat);
-      particles.position.copy(star.position);
-      scene.add(particles);
-      
-      const particleEffect = {
-        type: "particleBurst",
-        system: particles,
-        material: particleMat,
-        startTime: clock.getElapsedTime(),
-        duration: 8,
-        update: (elapsed) => {
-          const prog = elapsed / 8;
-          const positions = particles.geometry.attributes.position.array;
-          
-          for (let i = 0; i < particleCount; i++) {
-            const speed = (1 + Math.random()) * 0.5;
-            const idx = i * 3;
-            positions[idx] *= (1 + speed * 0.1);
-            positions[idx + 1] *= (1 + speed * 0.1);
-            positions[idx + 2] *= (1 + speed * 0.1);
-          }
-          
-          particles.geometry.attributes.position.needsUpdate = true;
-          particleMat.opacity = (1 - prog) * 0.8;
-          particles.rotation.y += 0.02;
-        },
-        end: () => {
-          scene.remove(particles);
-          particleGeo.dispose();
-          particleMat.dispose();
-        },
-      };
-      activeEffects.push(particleEffect);
-    }
-    
-    function createSpiralArc(obj1, obj2, duration) {
-      // Create spiral-shaped energy arcs
-      const material = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0 },
-          color: { value: new THREE.Color().setHSL(0.7, 1, 0.6) },
-          opacity: { value: 0 },
-          energy: { value: 0 },
-        },
-        vertexShader: document.getElementById("arcVertexShader").textContent,
-        fragmentShader: document.getElementById("arcFragmentShader").textContent,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      
-      const spiralEffect = {
-        type: "spiralArc",
-        mesh: null,
-        material: material,
-        startTime: clock.getElapsedTime(),
-        duration: duration,
-        obj1: obj1,
-        obj2: obj2,
-        update: (elapsed) => {
-          const prog = elapsed / spiralEffect.duration;
-          if (prog > 1) return;
-          
-          const p1 = new THREE.Vector3();
-          const p2 = new THREE.Vector3();
-          obj1.getWorldPosition(p1);
-          obj2.getWorldPosition(p2);
-          
-          // Create spiral curve
-          const points = [];
-          const segments = 100;
-          for (let i = 0; i <= segments; i++) {
-            const t = i / segments;
-            const spiralRadius = Math.sin(t * Math.PI * 4) * 2;
-            const point = new THREE.Vector3().lerpVectors(p1, p2, t);
-            point.x += Math.cos(t * Math.PI * 8) * spiralRadius;
-            point.z += Math.sin(t * Math.PI * 8) * spiralRadius;
-            point.y += Math.sin(t * Math.PI * 6) * spiralRadius * 0.5;
-            points.push(point);
-          }
-          
-          const curve = new THREE.CatmullRomCurve3(points);
-          const tube = new THREE.TubeGeometry(curve, segments, 0.1, 8, false);
-          
-          if (!spiralEffect.mesh) {
-            spiralEffect.mesh = new THREE.Mesh(tube, material);
-            scene.add(spiralEffect.mesh);
-          } else {
-            spiralEffect.mesh.geometry.dispose();
-            spiralEffect.mesh.geometry = tube;
-          }
-          
-          const intens = Math.sin(prog * Math.PI) * Math.exp(-prog * 0.5);
-          material.uniforms.opacity.value = intens * 0.7;
-          material.uniforms.energy.value = intens * 3;
-          material.uniforms.time.value = clock.getElapsedTime();
-          spiralEffect.mesh.visible = true;
-        },
-        end: () => {
-          if (spiralEffect.mesh) {
-            scene.remove(spiralEffect.mesh);
-            spiralEffect.mesh.geometry.dispose();
-            spiralEffect.material.dispose();
-          }
-        },
-      };
-      activeEffects.push(spiralEffect);
-    }
-
-    function createEnhancedArc(obj1, obj2, duration) {
-      const material = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0 },
-          color: { value: new THREE.Color(themes[currentThemeIndex].arcColor) },
-          opacity: { value: 0 },
-          energy: { value: 0 },
-        },
-        vertexShader: document.getElementById("arcVertexShader").textContent,
-        fragmentShader:
-          document.getElementById("arcFragmentShader").textContent,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      const arcEffect = {
-        type: "arc",
-        mesh: null,
-        material: material,
-        startTime: clock.getElapsedTime(),
-        duration: duration,
-        obj1: obj1,
-        obj2: obj2,
-        update: (elapsed) => {
-          const prog = elapsed / arcEffect.duration;
-          if (prog > 1) return;
-          const p1 = new THREE.Vector3(),
-            p2 = new THREE.Vector3();
-          obj1.getWorldPosition(p1);
-          obj2.getWorldPosition(p2);
-          const mid = p1.clone().lerp(p2, 0.5);
-          const ctrl = mid
-            .clone()
-            .add(new THREE.Vector3(0, p1.distanceTo(p2) * 0.5, 0));
-          const curve = new THREE.QuadraticBezierCurve3(p1, ctrl, p2);
-          const tube = new THREE.TubeGeometry(curve, 48, 0.15, 12, false);
-          if (!arcEffect.mesh) {
-            arcEffect.mesh = new THREE.Mesh(tube, material);
-            scene.add(arcEffect.mesh);
-          } else {
-            arcEffect.mesh.geometry.dispose();
-            arcEffect.mesh.geometry = tube;
-          }
-          const intens = Math.sin(prog * Math.PI);
-          material.uniforms.opacity.value = intens * 0.9;
-          material.uniforms.energy.value = intens * 2;
-          material.uniforms.time.value = clock.getElapsedTime();
-          arcEffect.mesh.visible = true;
-        },
-        end: () => {
-          if (arcEffect.mesh) {
-            scene.remove(arcEffect.mesh);
-            arcEffect.mesh.geometry.dispose();
-            arcEffect.material.dispose();
-          }
-        },
-      };
-      activeEffects.push(arcEffect);
-    }
-
-    function resetView() {
-      controls.reset();
-      
-      // Detect mobile devices and adjust camera position
-      const isMobile = window.innerWidth <= 768 || window.innerHeight <= 700;
-      const isSmallMobile = window.innerWidth <= 480 || window.innerHeight <= 600;
-      
-      if (isSmallMobile) {
-        // For small mobile devices: compact view, closer to title, optimized height
-        camera.position.set(40, 20, 40);
-      } else if (isMobile) {
-        // For tablets and medium devices: balanced view, closer to title, higher up
-        camera.position.set(35, 22, 35);
-      } else {
-        // For desktop: better position to see complete galaxy
-        camera.position.set(35, 28, 35);
-      }
-      
-      controls.update();
-    }
-
-    function toggleTimeAcceleration() {
-      // Cycle through speeds: 1x → 2x → 5x → 10x → 0.5x → 1x
-      if (timeAcceleration === 1) {
-        timeAcceleration = 2;
-      } else if (timeAcceleration === 2) {
-        timeAcceleration = 5;
-      } else if (timeAcceleration === 5) {
-        timeAcceleration = 10;
-      } else if (timeAcceleration === 10) {
-        timeAcceleration = 0.5;
-      } else {
-        timeAcceleration = 1;
-      }
-      document
-        .getElementById("timeAccel")
-        .querySelector("span:last-of-type").textContent =
-        `Time: ${timeAcceleration}x`;
-    }
-
-    function toggleTheme() {
-      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-      applyTheme(currentThemeIndex);
-    }
-
-    function applyTheme(i) {
-      const theme = themes[i];
-      themeButton.querySelector("span:last-of-type").textContent =
-        `Theme: ${theme.name}`;
-      star.material.uniforms.color1.value.set(theme.starColors.color1);
-      star.material.uniforms.color2.value.set(theme.starColors.color2);
-      planets.forEach((p, idx) => {
-        const pd = theme.planetData[idx];
-        p.material.uniforms.baseColor.value.set(...pd.baseColor);
-        p.material.uniforms.accentColor.value.set(...pd.accentColor);
-      });
-      particleSystems.forEach((ps, idx) => {
-        const c = new THREE.Color(theme.planetData[idx].trailColor);
-        const col = ps.system.geometry.attributes.color;
-        for (let j = 0; j < col.count; j++) col.setXYZ(j, c.r, c.g, c.b);
-        col.needsUpdate = true;
-      });
-      ambientLight.color.set(theme.ambientLightColor);
-      starLight.color.set(theme.starLightColor);
-      blueLight.color.set(theme.directionalLights.color1);
-      purpleLight.color.set(theme.directionalLights.color2);
-      metalMaterial.color.set(theme.metalMaterialColor);
-      ringMaterial.color.set(theme.ringColor);
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      composer.setSize(window.innerWidth, window.innerHeight);
-      
-      // Adjust camera position for mobile when resizing
-      const isMobile = window.innerWidth <= 768 || window.innerHeight <= 700;
-      const isSmallMobile = window.innerWidth <= 480 || window.innerHeight <= 600;
-      
-      if (isSmallMobile) {
-        camera.position.set(40, 20, 40);
-      } else if (isMobile) {
-        camera.position.set(35, 22, 35);
-      } else {
-        // For desktop: better position to see complete galaxy
-        camera.position.set(35, 28, 35);
-      }
-      
-      controls.update();
-    }
-
-    function animate() {
-      requestAnimationFrame(animate);
-      const delta = clock.getDelta() * timeAcceleration;
-      const t = clock.getElapsedTime();
-      star.rotation.y += delta * 0.3;
-      star.rotation.x += delta * 0.15;
-      star.material.uniforms.time.value = t;
-      orrery.children.forEach((c) => {
-        if (c.userData.rotationSpeed)
-          c.rotation.z += delta * c.userData.rotationSpeed;
-      });
-      planets.forEach((p) => {
-        p.group.rotation.y += delta * p.group.userData.orbitSpeed;
-        p.body.rotation.y += delta * p.body.userData.selfRotation;
-        p.body.rotation.z += delta * p.body.userData.selfRotation * 0.3;
-        p.material.uniforms.time.value = t;
-      });
-      particleSystems.forEach(
-        (ps) => (ps.system.geometry.attributes.position.needsUpdate = true),
-      );
-      
-      // Animate comets
-      comets.forEach((comet) => {
-        comet.userData.angle += delta * comet.userData.speed;
-        const x = Math.cos(comet.userData.angle) * comet.userData.distance;
-        const z = Math.sin(comet.userData.angle) * comet.userData.distance;
-        const y = Math.sin(comet.userData.angle * 2) * comet.userData.inclination * 10;
-        
-        comet.position.set(x, y, z);
-        comet.lookAt(x + Math.cos(comet.userData.angle + 0.1), y, z + Math.sin(comet.userData.angle + 0.1));
-      });
-      
-      // Animate spaceship
-      if (spaceship) {
-        spaceship.userData.pathAngle += delta * spaceship.userData.pathSpeed;
-        const x = Math.cos(spaceship.userData.pathAngle) * spaceship.userData.pathRadius;
-        const z = Math.sin(spaceship.userData.pathAngle) * spaceship.userData.pathRadius;
-        const y = spaceship.userData.pathHeight + Math.sin(spaceship.userData.pathAngle * 3) * 3;
-        
-        spaceship.position.set(x, y, z);
-        
-        // Make spaceship look in direction of movement
-        const nextAngle = spaceship.userData.pathAngle + 0.1;
-        const nextX = Math.cos(nextAngle) * spaceship.userData.pathRadius;
-        const nextZ = Math.sin(nextAngle) * spaceship.userData.pathRadius;
-        const nextY = spaceship.userData.pathHeight + Math.sin(nextAngle * 3) * 3;
-        spaceship.lookAt(nextX, nextY, nextZ);
-      }
-      
-      for (let i = activeEffects.length - 1; i >= 0; i--) {
-        const e = activeEffects[i];
-        const elapsed = t - e.startTime;
-        if (elapsed > e.duration) {
-          e.end();
-          activeEffects.splice(i, 1);
-        } else {
-          e.update(elapsed, delta);
-        }
-      }
-      controls.update();
-      composer.render(delta);
-    }
-
-    init();
-    animate();
-  </script>
-
+    </script>
 </body>
 </html>
