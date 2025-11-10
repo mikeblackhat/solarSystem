@@ -534,7 +534,7 @@ body {
     bottom: 15px;
   }
   .stats {
-    top: 15px;
+    top: 80px;
     padding: 6px 10px;
     font-size: 9px;
   }
@@ -563,11 +563,13 @@ body {
     min-width: 80px;
   }
   .stats {
-    top: 10px;
-    right: 10px;
+    top: 70px;
+    right: auto;
+    left: 50%;
     bottom: auto;
     padding: 4px 8px;
     font-size: 8px;
+    transform: translateX(-50%);
   }
 }
 
@@ -583,6 +585,26 @@ body {
   }
   .title h1 {
     animation: none;
+  }
+}
+
+@media (max-width: 299px) {
+  .title {
+    top: 5px;
+  }
+  .title h1 {
+    font-size: 1.4rem;
+    letter-spacing: 0.1em;
+  }
+  .title .author {
+    font-size: 0.6rem;
+  }
+  .stats {
+    top: 70px;
+    font-size: 8px;
+    padding: 4px 8px;
+    gap: 8px;
+    max-width: 90vw;
   }
 }
 
