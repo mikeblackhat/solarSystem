@@ -1,6 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@300;500;700;900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 body {
   margin: 0;
   overflow: hidden;
@@ -8,6 +18,9 @@ body {
   height: 100vh;
   width: 100vw;
   font-family: "Inter", "Orbitron", sans-serif;
+  touch-action: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 #container {
@@ -329,5 +342,163 @@ body {
     top: 15px;
     right: 15px;
     padding: 8px 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    top: 20px;
+  }
+  .title h1 {
+    font-size: 2.5rem;
+  }
+  .title .author {
+    font-size: 0.8rem;
+  }
+  .controls {
+    gap: 10px;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    transform: translateX(0);
+    width: auto;
+  }
+  .control-button {
+    padding: 10px 14px;
+    font-size: 12px;
+    min-width: 90px;
+  }
+  .stats {
+    top: 20px;
+    right: 20px;
+    padding: 8px 12px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+  }
+  .title h1 {
+    font-size: 2rem;
+    letter-spacing: 0.05em;
+  }
+  .title .author {
+    font-size: 0.7rem;
+    text-align: center;
+  }
+  .controls {
+    flex-direction: column;
+    gap: 6px;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    padding: 10px;
+  }
+  .control-button {
+    padding: 10px 12px;
+    font-size: 11px;
+    min-width: auto;
+    width: 100%;
+  }
+  .stats {
+    top: auto;
+    bottom: 140px;
+    right: 10px;
+    left: 10px;
+    text-align: center;
+    padding: 6px 10px;
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 375px) {
+  .title h1 {
+    font-size: 1.8rem;
+  }
+  .title .author {
+    font-size: 0.65rem;
+  }
+  .control-button {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+}
+
+@media (max-height: 700px) {
+  .title {
+    top: 15px;
+  }
+  .title h1 {
+    font-size: 2.2rem;
+  }
+  .controls {
+    bottom: 15px;
+  }
+  .stats {
+    top: 15px;
+    padding: 6px 10px;
+    font-size: 9px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .title {
+    top: 10px;
+  }
+  .title h1 {
+    font-size: 1.8rem;
+  }
+  .title .author {
+    font-size: 0.6rem;
+  }
+  .controls {
+    flex-direction: row;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 5px;
+  }
+  .control-button {
+    padding: 6px 10px;
+    font-size: 9px;
+    min-width: 80px;
+  }
+  .stats {
+    top: 10px;
+    right: 10px;
+    bottom: auto;
+    padding: 4px 8px;
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-button {
+    transition: none;
+  }
+  .control-button:hover {
+    transform: none;
+  }
+  .control-button > span:not(:last-of-type) {
+    display: none;
+  }
+  .title h1 {
+    animation: none;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .control-button:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .control-button:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0.98);
   }
 }
