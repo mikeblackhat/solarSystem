@@ -16,6 +16,7 @@
   </div>
   <div class="title">
     <h1>Solar System</h1>
+    <p class="author">by Mikeblackhat</p>
   </div>
   <div class="controls">
     <button class="control-button" id="resetView">
@@ -817,8 +818,18 @@
     }
 
     function toggleTimeAcceleration() {
-      timeAcceleration =
-        timeAcceleration === 1 ? 3 : timeAcceleration === 3 ? 0.5 : 1;
+      // Cycle through speeds: 1x → 2x → 5x → 10x → 0.5x → 1x
+      if (timeAcceleration === 1) {
+        timeAcceleration = 2;
+      } else if (timeAcceleration === 2) {
+        timeAcceleration = 5;
+      } else if (timeAcceleration === 5) {
+        timeAcceleration = 10;
+      } else if (timeAcceleration === 10) {
+        timeAcceleration = 0.5;
+      } else {
+        timeAcceleration = 1;
+      }
       document
         .getElementById("timeAccel")
         .querySelector("span:last-of-type").textContent =
