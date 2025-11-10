@@ -327,27 +327,32 @@ body {
 @media (max-width: 640px) {
   .controls {
     gap: 8px;
-    bottom: 15px;
-    left: 15px;
-    right: 15px;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
     transform: translateX(0);
     width: auto;
+    padding: 6px;
+    border-radius: 16px;
   }
   .control-button {
-    padding: 8px 12px;
-    font-size: 11px;
+    padding: 6px 10px;
+    font-size: 10px;
     flex-grow: 1;
+    min-width: auto;
   }
   .stats {
-    top: 15px;
-    right: 15px;
-    padding: 8px 12px;
+    top: 10px;
+    right: 10px;
+    padding: 6px 10px;
+    font-size: 9px;
+    border-radius: 8px;
   }
 }
 
 @media (max-width: 768px) {
   .title {
-    top: 20px;
+    top: 15px;
   }
   .title h1 {
     font-size: 2.5rem;
@@ -356,35 +361,39 @@ body {
     font-size: 0.8rem;
   }
   .controls {
-    gap: 10px;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
+    gap: 8px;
+    bottom: 15px;
+    left: 15px;
+    right: 15px;
     transform: translateX(0);
     width: auto;
+    padding: 8px;
+    border-radius: 18px;
   }
   .control-button {
-    padding: 10px 14px;
-    font-size: 12px;
-    min-width: 90px;
+    padding: 8px 12px;
+    font-size: 11px;
+    min-width: 80px;
   }
   .stats {
-    top: 20px;
-    right: 20px;
+    top: 15px;
+    right: 15px;
     padding: 8px 12px;
     font-size: 9px;
+    border-radius: 8px;
   }
 }
 
 @media (max-width: 480px) {
   .title {
-    top: 15px;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
+    margin-bottom: 0;
   }
   .title h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     letter-spacing: 0.05em;
   }
   .title .author {
@@ -393,26 +402,31 @@ body {
   }
   .controls {
     flex-direction: column;
-    gap: 6px;
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
-    padding: 10px;
+    gap: 3px;
+    bottom: 5px;
+    left: 5px;
+    right: 5px;
+    padding: 3px;
+    border-radius: 12px;
   }
   .control-button {
-    padding: 10px 12px;
-    font-size: 11px;
+    padding: 8px 10px;
+    font-size: 10px;
     min-width: auto;
     width: 100%;
   }
   .stats {
-    top: auto;
-    bottom: 140px;
+    top: 85px;
+    bottom: auto;
     right: 10px;
     left: 10px;
     text-align: center;
     padding: 6px 10px;
     font-size: 8px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 }
 
